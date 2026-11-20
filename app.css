@@ -627,3 +627,19 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
 .ev-exp-hint[hidden]{display:none}
 @media (max-width: 560px){ .ev-exp{grid-area:auto; grid-column:1/-1} }
 
+/* ---- password-protected backup ---- */
+.bk-lock{margin:4px 0 10px}
+.bk-lock-box{margin:6px 0 0; padding:10px; border-radius:var(--r); background:var(--surface-2)}
+.bk-lock-box[hidden]{display:none}
+.bk-pw-row{display:flex; flex-wrap:wrap; align-items:flex-end; gap:8px 10px}
+.bk-pw-row .fld{flex:1 1 180px; min-width:0}
+.bk-pw-row .input{width:100%}
+.bk-show{min-width:64px}
+#bk-pw-strength{margin:6px 0 0}
+#bk-pw-strength[data-level="0"]{color:var(--danger)}
+#bk-pw-strength[data-level="3"]{color:var(--ok)}
+.bk-warn{margin:6px 0 0; font-size:12.5px; font-weight:700; color:var(--danger)}
+.bk-unlock{margin:10px 0 0; padding:10px; border-radius:var(--r); border:1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); background:var(--accent-soft)}
+.bk-unlock[hidden]{display:none}
+.bk-unlock-t{margin:0 0 6px; font-size:13px; font-weight:700}
+#bk-unlock-msg{margin:6px 0 0}

@@ -5,6 +5,7 @@ import { DEFAULT_STAGES, cloneStages, checkStages, normalize } from "../model.js
 import { fmtFull, ymd } from "../dates.js";
 import { serializeBackup, validateBackup, planImport, MAX_FILE_BYTES } from "../backup.js";
 import { getIconBlob } from "../store.js";
+import { encryptBackup, decryptBackup, isEncryptedEnvelope, checkEnvelope, passwordStrength, MIN_PASSWORD } from "../crypto-backup.js";
 
 export function initTemplatePanel(app) {
   const { S } = app;
@@ -47,9 +48,42 @@ export function initBackupPanel(app) {
     if (list.length > 8) ul.append(Object.assign(document.createElement("li"), { textContent: `ほか ${list.length - 8} 件` }));
     ul.hidden = !list.length;
   };
-  function resetImport() { S.pendingImport = null; $("import-confirm").hidden = true; $("backup-file").value = ""; }
+  function resetUnlock() { S.pendingEnvelope = null; $("bk-unlock").hidden = true; $("bk-unlock-pw").value = ""; $("bk-unlock-msg").textContent = ""; }
+  function resetImport() { S.pendingImport = null; $("import-confirm").hidden = true; $("backup-file").value = ""; resetUnlock(); }
 
+  /* ---- password protection (optional) ---- */
+  const locked = () => $("bk-lock").checked;
+  function clearPasswords() { $("bk-pw").value = ""; $("bk-pw2").value = ""; $("bk-pw-strength").textContent = ""; }
+  $("bk-lock").addEventListener("change", () => {
+    $("bk-lock-box").hidden = !locked();
+    if (locked()) $("bk-pw").focus(); else clearPasswords();
+  });
+  $("bk-pw2").addEventListener("input", () => msg(""));
+  $("bk-pw").addEventListener("input", () => {
+    msg("");
+    const st = passwordStrength($("bk-pw").value);
+    const el = $("bk-pw-strength");
+    el.textContent = $("bk-pw").value ? `強さ：${st.text}` : "";
+    el.dataset.level = String(st.level);
+  });
+  $("bk-pw-show").addEventListener("click", () => {
+    const show = $("bk-pw-show").getAttribute("aria-pressed") !== "true";
+    for (const id of ["bk-pw", "bk-pw2"]) $(id).type = show ? "text" : "password";
+    $("bk-pw-show").setAttribute("aria-pressed", String(show));
+    $("bk-pw-show").textContent = show ? "隠す" : "表示";
+  });
+
+  let exporting = false;
   async function exportBackup() {
+    if (exporting) return;
+    let password = "";
+    if (locked()) {
+      password = $("bk-pw").value;
+      if (password.length < MIN_PASSWORD) { msg(`パスワードは${MIN_PASSWORD}文字以上にしてください。`); $("bk-pw").focus(); return; }
+      if (password !== $("bk-pw2").value) { msg("確認用のパスワードが一致しません。"); $("bk-pw2").focus(); return; }
+    }
+    const btns = ["btn-export", "btn-import-export"].map($);
+    exporting = true; btns.forEach((b) => { b.disabled = true; });
     try {
       const store = app.store();
       const companies = (await store.all()).map((r) => normalize(r, r.id));
@@ -60,16 +94,26 @@ export function initBackupPanel(app) {
         if (b) icons[c.iconId] = await blobToDataURL(b);
       }
       const payload = serializeBackup({ companies, template: S.template, icons });
-      const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 1)], { type: "application/json" }));
+      let text = JSON.stringify(payload, null, 1);
+      let name = `shukatsu-backup-${ymd(new Date())}.json`;
+      if (password) {
+        msg("暗号化しています…（数秒かかることがあります）");
+        await new Promise((r) => setTimeout(r, 30)); // let the message paint first
+        text = JSON.stringify(await encryptBackup(JSON.stringify(payload), password));
+        name = `shukatsu-backup-${ymd(new Date())}-locked.json`;
+        password = ""; clearPasswords();
+      }
+      const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
       const a = document.createElement("a");
-      a.href = url; a.download = `shukatsu-backup-${ymd(new Date())}.json`;
+      a.href = url; a.download = name;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-      msg(`${companies.length} 社分を書き出しました。`);
+      msg(`${companies.length} 社分を${name.includes("-locked") ? "パスワード付きで" : ""}書き出しました。`);
       const at = new Date().toISOString();
       await app.store().putSetting("lastBackupAt", at).catch(() => {});
       S.lastBackupAt = at; app.render();
-    } catch (e) { msg("書き出しに失敗しました。"); }
+    } catch (e) { msg("書き出しに失敗しました。" + (e && e.code === "no-crypto" ? e.message : "")); }
+    finally { exporting = false; btns.forEach((b) => { b.disabled = false; }); }
   }
 
   async function readBackup(file) {
@@ -77,6 +121,21 @@ export function initBackupPanel(app) {
     if (file.size > MAX_FILE_BYTES) { msg("ファイルが大きすぎます。"); return; }
     let text;
     try { text = await file.text(); } catch (e) { msg("ファイルを読めませんでした。"); return; }
+    let parsed = null;
+    try { parsed = JSON.parse(text); } catch (e) { parsed = null; }
+    if (isEncryptedEnvelope(parsed)) {
+      const errs = checkEnvelope(parsed);
+      if (errs.length) { msg("このファイルは読み込めません。データは変更していません。"); showErrors(errs); $("backup-file").value = ""; return; }
+      S.pendingEnvelope = parsed;
+      $("bk-unlock").hidden = false; msg("");
+      $("bk-unlock-pw").focus();
+      return;
+    }
+    continueImport(text);
+  }
+
+  /* decrypted (or plain) text -> the usual validate -> 追加する/置き換える flow */
+  function continueImport(text) {
     const v = validateBackup(text);
     if (!v.ok) {
       msg("このファイルは読み込めません。データは変更していません。");
@@ -118,4 +177,24 @@ export function initBackupPanel(app) {
   $("btn-import-merge").addEventListener("click", () => applyImport("add"));
   $("btn-import-replace").addEventListener("click", () => applyImport("replace"));
   $("btn-import-cancel").addEventListener("click", () => { resetImport(); msg(""); });
+  $("bk-unlock").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const env = S.pendingEnvelope; if (!env) return;
+    const input = $("bk-unlock-pw");
+    if (!input.value) { $("bk-unlock-msg").textContent = "パスワードを入力してください。"; input.focus(); return; }
+    const btn = $("btn-unlock"); btn.disabled = true;
+    $("bk-unlock-msg").textContent = "パスワードを確認しています…（数秒かかることがあります）";
+    await new Promise((r) => setTimeout(r, 30));
+    try {
+      const text = await decryptBackup(env, input.value);
+      input.value = "";
+      resetUnlock();
+      continueImport(text);
+    } catch (err) {
+      input.value = "";
+      $("bk-unlock-msg").textContent = err && err.code === "wrong-password" ? "パスワードが違うか、ファイルが壊れています。データは変更していません。" : (err && err.message) || "開けませんでした。";
+      input.focus();
+    } finally { btn.disabled = false; }
+  });
+  $("btn-unlock-cancel").addEventListener("click", () => { resetImport(); msg(""); });
 }

@@ -61,7 +61,19 @@
   <section class="panel" id="backup-panel" aria-labelledby="backup-h" hidden>
     <h2 id="backup-h">バックアップ</h2>
     <p>書き出したファイル（JSON）には全企業の記録・予定・アイコン画像が含まれます。別の端末やブラウザで「読み込み」すると復元できます。</p>
-    <p class="hint">バックアップファイルは暗号化されていません。自分だけが開ける場所に保存し、チャットやメールで送るのは避けてください。</p>
+    <p class="hint">パスワードなしで書き出したファイルは暗号化されていません。自分だけが開ける場所に保存し、チャットやメールで送るのは避けてください。別の端末へ送るときは「パスワードで保護する」がおすすめです。</p>
+    <div class="bk-lock">
+      <label class="opt"><input type="checkbox" id="bk-lock" aria-controls="bk-lock-box">パスワードで保護する</label>
+      <div class="bk-lock-box" id="bk-lock-box" hidden>
+        <div class="bk-pw-row">
+          <div class="fld"><label for="bk-pw">パスワード（8文字以上）</label><input type="password" class="input" id="bk-pw" autocomplete="new-password" minlength="8" maxlength="256" aria-describedby="bk-pw-strength"></div>
+          <div class="fld"><label for="bk-pw2">もう一度入力</label><input type="password" class="input" id="bk-pw2" autocomplete="new-password" maxlength="256"></div>
+          <button type="button" class="btn small ghost bk-show" id="bk-pw-show" aria-pressed="false" aria-controls="bk-pw bk-pw2">表示</button>
+        </div>
+        <p class="hint" id="bk-pw-strength" aria-live="polite"></p>
+        <p class="bk-warn">パスワードを忘れると、このファイルは誰にも開けません（復元する方法はありません）。</p>
+      </div>
+    </div>
     <div class="row">
       <button type="button" class="btn" id="btn-export">書き出し</button>
       <span class="btn file-btn">読み込み<input type="file" id="backup-file" accept="application/json,.json" aria-label="バックアップファイルを読み込む"></span>
@@ -69,6 +81,15 @@
       <span class="hint" id="backup-last"></span>
     </div>
     <ul class="backup-errors" id="backup-errors" role="alert" hidden></ul>
+    <form class="bk-unlock" id="bk-unlock" hidden>
+      <p class="bk-unlock-t">パスワード付きのバックアップです。書き出したときのパスワードを入力してください。</p>
+      <div class="bk-pw-row">
+        <div class="fld"><label for="bk-unlock-pw">パスワード</label><input type="password" class="input" id="bk-unlock-pw" autocomplete="current-password" maxlength="256"></div>
+        <button type="submit" class="btn primary" id="btn-unlock">開く</button>
+        <button type="button" class="btn ghost" id="btn-unlock-cancel">キャンセル</button>
+      </div>
+      <p class="hint" id="bk-unlock-msg" role="status" aria-live="polite"></p>
+    </form>
     <div id="import-confirm" hidden>
       <p class="import-summary" id="import-summary"></p>
       <div class="row">
@@ -91,6 +112,11 @@
     <details>
       <summary>データはどこに保存される？</summary>
       <p>このブラウザの中（この端末）だけに保存され、どこにも送信されません。ブラウザのデータを消すと消えてしまうので、ときどきバックアップを書き出してください。</p>
+      <p class="row"><button type="button" class="btn small" data-help="backup">バックアップを開く</button></p>
+    </details>
+    <details>
+      <summary>バックアップにパスワードを付けるには？</summary>
+      <p>「バックアップ」で「パスワードで保護する」にチェックを入れ、パスワードを2回入れてから「書き出し」を押します。ファイルは暗号化され、読み込むときにパスワードが必要になります。パスワードを忘れると、誰にも開けません。</p>
       <p class="row"><button type="button" class="btn small" data-help="backup">バックアップを開く</button></p>
     </details>
     <details>
