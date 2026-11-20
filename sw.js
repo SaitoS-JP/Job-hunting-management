@@ -1,5 +1,5 @@
 /* 就活ボード service worker — offline app shell. Bump VERSION on every release. */
-const VERSION = "v2";
+const VERSION = "v3";
 const SHELL_CACHE = "shukatsu-shell-" + VERSION;
 const FONT_CACHE = "shukatsu-fonts";
 const SHELL = [

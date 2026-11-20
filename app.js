@@ -474,6 +474,16 @@
     $("count-line").textContent = `${list.length} / ${S.docs.length} 社`;
     main.innerHTML = list.length ? listHTML(list)
       : `<div class="empty"><h2>条件に一致する企業はありません</h2><p>検索語や志望度・対象の絞り込みを変えてみてください。</p></div>`;
+    revealCurrentSteps(main);
+  }
+  /* Scroll each stepper so the current stage is visible (narrow screens). */
+  function revealCurrentSteps(root) {
+    root.querySelectorAll(".steps-scroll").forEach((box) => {
+      const cur = box.querySelector('[aria-current="step"]');
+      if (!cur || box.scrollWidth <= box.clientWidth) return;
+      const target = cur.offsetLeft - (box.clientWidth - cur.offsetWidth) / 2;
+      box.scrollLeft = Math.max(0, target - box.firstElementChild.offsetLeft);
+    });
   }
 
   /* ================= stage list editor (template + per company) ================= */
@@ -645,6 +655,7 @@
     const c = S.editingId ? byId(S.editingId) : null;
     const r = reachedFrom(S.draftStages, stage, c ? c.history : []);
     $("dlg-steps").innerHTML = stepsHTML(S.draftStages.map((s) => ({ id: s.id, label: String(s.label).trim() || "…" })), stage, r, true);
+    requestAnimationFrame(() => revealCurrentSteps($("dlg-steps").parentElement));
     const name = $("c-name").value || "";
     const src = currentIconSrc();
     $("dlg-icon").innerHTML = iconHTML(name, src.id, 48, src.url);
