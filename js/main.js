@@ -466,6 +466,25 @@ $("btn-samples-yes").addEventListener("click", async () => {
   finally { btn.disabled = false; }
 });
 
+/* ---------- 「就活ボード」(title) → home ----------
+   Closes the menu, every panel, the change sheet and the tour, drops a
+   half-finished import, switches to 一覧 and scrolls to the top. Search and
+   filters stay. An open dialog is modal, so the title cannot be tapped then;
+   unsaved edits are never discarded from here. */
+const PANELS = [["backup-panel", "btn-backup"], ["ics-panel", "btn-ics"], ["tpl-panel", "btn-tpl"], ["help-panel", "btn-help"]];
+function goHome() {
+  closeMenu();
+  for (const [panel, btn] of PANELS) { $(panel).hidden = true; $(btn).setAttribute("aria-expanded", "false"); }
+  hideChangeNotice();
+  if (app.resetBackupUI) app.resetBackupUI();
+  if (tour.isOpen()) tour.end();
+  S.cmpPicker = false;
+  setView("list");
+  window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  $("home-link").focus({ preventScroll: true });
+}
+$("home-link").addEventListener("click", (e) => { e.preventDefault(); goHome(); });
+
 /* iOS install hint (shown by renderFirstRun once the checklist is out of the way) */
 $("btn-ios-hint-close").addEventListener("click", () => { $("ios-hint").hidden = true; lsSet(LS.iosHint, "1"); });
 

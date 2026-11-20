@@ -176,6 +176,8 @@ export function initBackupPanel(app) {
     if (!p.hidden) $("btn-export").focus();
   });
   app.exportBackup = exportBackup;
+  /* used by the title (home) button: drop any half-finished import and typed passwords */
+  app.resetBackupUI = () => { resetImport(); clearPasswords(); showErrors([]); msg(""); };
   $("btn-export").addEventListener("click", exportBackup);
   $("btn-import-export").addEventListener("click", exportBackup);
   $("backup-file").addEventListener("change", (e) => { const f = e.target.files && e.target.files[0]; if (f) readBackup(f); });
