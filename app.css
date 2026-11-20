@@ -359,8 +359,14 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
 .tabs button[aria-selected="true"]{background:var(--ink); color:var(--bg)}
 
 /* ---- header menu: all buttons visible on wide screens ---- */
-.menu-btn{display:none}
-.menu-items{display:contents}
+.top-actions{position:relative}
+.menu-btn{display:inline-flex}
+.menu-btn::after{content:""; width:0; height:0; margin-left:4px; border:4px solid transparent; border-top-color:currentColor; transform:translateY(2px)}
+.menu-items{display:none; position:absolute; top:calc(100% + 6px); right:0; z-index:30; flex-direction:column; gap:4px; min-width:240px; padding:6px; background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.top-actions.open .menu-items{display:flex}
+.menu-items .btn{width:100%; justify-content:flex-start; border-color:transparent; background:transparent}
+.menu-items .btn:hover{background:var(--surface-2)}
+.menu-sep{display:block; height:1px; margin:4px 2px; background:var(--rule)}
 
 /* ---- ics panel ---- */
 .ics-opts{display:flex; flex-wrap:wrap; gap:10px 24px; margin-bottom:10px}
@@ -423,9 +429,7 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
   .cal-title{font-size:16px; min-width:0; flex:1 1 auto}
 }
 @media (max-width: 560px){
-  .menu-btn{display:inline-flex}
-  .menu-items{display:none}
-  .top-actions.open .menu-items{display:flex; flex-direction:column; gap:6px; width:100%; order:5}
+  .top-actions.open .menu-items{position:static; display:flex; flex-direction:column; gap:4px; width:100%; order:5; box-shadow:none}
   .top-actions.open .menu-items .btn{width:100%; justify-content:flex-start}
   .note-h.iv{grid-template-columns:minmax(0,1fr) 38px; grid-template-areas:"d del" "t t"}
   .note-h.iv input[type=date]{grid-area:d}
@@ -474,6 +478,32 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
 .fld .es-meta .es-limit{width:6.5em; flex:none}
 .es-meta label{white-space:nowrap}
 
+
+/* ---- はじめかた checklist ---- */
+.onboard{background:var(--surface); border:1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius:var(--r); box-shadow:var(--shadow); padding:14px 16px; margin-bottom:14px}
+.ob-h{display:flex; align-items:center; gap:10px}
+.ob-h h2{margin:0; font-size:16px}
+.ob-prog{font-size:12px; color:var(--ink-2); margin-right:auto}
+.ob-bar{height:5px; border-radius:3px; background:var(--surface-2); overflow:hidden; margin:8px 0 10px}
+.ob-bar span{display:block; height:100%; background:var(--ok)}
+.ob-done{margin:0 0 8px; color:var(--ok); font-weight:700; font-size:13.5px}
+.ob-steps{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+.ob-step{display:flex; gap:10px; align-items:flex-start; padding:8px 4px; border-top:1px dashed var(--rule)}
+.ob-step:first-child{border-top:0}
+.ob-mark{flex:none; width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:700; background:var(--surface-2); color:var(--ink-2)}
+.ob-step.next .ob-mark{background:var(--accent); color:var(--accent-ink)}
+.ob-step.done{padding-block:3px; align-items:center}
+.ob-step.done .ob-mark{background:var(--ok-soft); color:var(--ok)}
+.ob-step.done .ob-t{color:var(--ink-3); font-weight:500; text-decoration:line-through; text-decoration-color:color-mix(in srgb, var(--ink-3) 50%, transparent)}
+.ob-c{display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0}
+.ob-t{font-weight:700; font-size:14px}
+.ob-b{margin:0; color:var(--ink-2); font-size:13px}
+.ob-msg{margin:0}
+.ob-msg:empty{display:none}
+.ob-links{display:flex; flex-wrap:wrap; gap:4px 16px; margin:8px 0 0}
+.spot{outline:3px solid var(--warn) !important; outline-offset:3px; animation:spot 1s ease-in-out 3}
+@keyframes spot{50%{outline-color:transparent}}
+
 /* ---- simplified add form ---- */
 .first-ev{display:grid; grid-template-columns:10em 7.5em minmax(0,1fr); gap:6px}
 .first-ev .input{width:100%; min-width:0}
@@ -486,8 +516,34 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
 .more-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 14px; padding:4px 12px 12px}
 .more-grid .full{grid-column:1/-1}
 
+/* ---- help ---- */
+.help-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px}
+.help details{border-top:1px solid var(--rule)}
+.help summary{cursor:pointer; min-height:40px; display:flex; align-items:center; font-weight:700; font-size:13.5px; padding:4px 2px}
+.help details p{margin:0 0 8px; font-size:13px; color:var(--ink-2)}
+.help details .row{gap:8px}
+
+/* ---- tour ---- */
+.tour{position:fixed; inset:0; z-index:100}
+.tour-block{position:absolute; inset:0}
+.tour-hole{position:fixed; border-radius:8px; box-shadow:0 0 0 9999px var(--overlay), 0 0 0 3px var(--accent); pointer-events:none; transition:left .2s, top .2s, width .2s, height .2s}
+.tour-hole[hidden]{display:none}
+.tour:has(.tour-hole[hidden]) .tour-block{background:var(--overlay)}
+.tour-tip{position:fixed; background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 36px rgba(0,0,0,.3); padding:14px 16px; max-width:calc(100vw - 24px)}
+.tour-tip.center{left:50%; top:50%; transform:translate(-50%,-50%); width:min(380px, calc(100vw - 32px))}
+.tour-tip.sheet{left:max(8px, env(safe-area-inset-left, 0px)); right:max(8px, env(safe-area-inset-right, 0px)); max-width:none}
+.tour-tip.sheet.at-bottom{bottom:max(8px, env(safe-area-inset-bottom, 0px))}
+.tour-tip.sheet.at-top{top:max(8px, env(safe-area-inset-top, 0px))}
+.tour-count{margin:0; font-size:11.5px; color:var(--ink-3)}
+.tour-title{margin:2px 0 4px; font-size:16px}
+.tour-title:focus{outline:none}
+.tour-text{margin:0 0 12px; font-size:13.5px; color:var(--ink-2); line-height:1.6}
+.tour-btns{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end}
+.tour-tip.sheet .tour-btns .btn{flex:1 1 30%; min-height:42px}
+@media (prefers-reduced-motion: reduce){ .tour-hole{transition:none} .spot{animation:none} }
 @media (max-width: 560px){
   .first-ev{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
   .first-ev #c-first-label{grid-column:1/-1}
   .more-grid{grid-template-columns:minmax(0,1fr); padding:4px 10px 10px}
+  .ob-h{flex-wrap:wrap}
 }

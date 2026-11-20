@@ -19,7 +19,10 @@ import { installEditorEvents } from "./ui/stage-editor.js";
 import { initDialog } from "./ui/dialog.js";
 import { initTemplatePanel, initBackupPanel } from "./ui/panels.js";
 
-const LS = { sort: "shukatsu.sort", iosHint: "shukatsu.iosHintDismissed", view: "shukatsu.view", backupSnooze: "shukatsu.backupSnoozeUntil" };
+const LS = { sort: "shukatsu.sort", iosHint: "shukatsu.iosHintDismissed", view: "shukatsu.view", backupSnooze: "shukatsu.backupSnoozeUntil", obDismissed: "shukatsu.onboardDismissed", obDoneSeen: "shukatsu.onboardDoneSeen" };
+import { renderOnboarding } from "./ui/onboarding-card.js";
+import { createTour } from "./ui/tour.js";
+import { latestOwnCompany } from "./onboarding.js";
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 
@@ -77,6 +80,11 @@ async function changeStage(c, stage) {
 }
 
 const iconUrl = (id) => icons.get(id);
+const UA = navigator.userAgent || "";
+const IOS = /iPad|iPhone|iPod/.test(UA) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const STANDALONE = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+const OB = { forced: false, doneSeenAtLoad: lsGet(LS.obDoneSeen) === "1", visible: false };
+
 const app = { S, store: () => store, reload, render: () => render(), serial, notifyOthers, errText, saveRecord, deleteRecord, iconUrl, icsReminders: () => icsReminders() };
 
 /* ---------- render ---------- */
@@ -127,6 +135,7 @@ function render() {
   $("sort-wrap").hidden = cal;
   const now = new Date();
   renderBackupReminder(now);
+  renderFirstRun();
   renderStats(S.docs);
   renderUpcoming(S.docs, iconUrl, now);
   const main = $("main");
@@ -149,6 +158,19 @@ function render() {
   revealCurrentSteps(main);
 }
 
+/* 「はじめかた」: while the card is shown, the install hint and backup banner
+   stay hidden (its last step covers both). */
+function renderFirstRun() {
+  if (!S.loaded) { $("onboard").hidden = true; return; }
+  const ob = renderOnboarding({
+    companies: S.docs, lastBackupAt: S.lastBackupAt, ios: IOS, standalone: STANDALONE,
+    dismissed: lsGet(LS.obDismissed) === "1", doneSeen: OB.doneSeenAtLoad, forced: OB.forced,
+  }, { hasSamples: S.docs.some((c) => c.example) });
+  OB.visible = ob.visible;
+  if (ob.visible && ob.all) lsSet(LS.obDoneSeen, "1");
+  $("ios-hint").hidden = !(IOS && !STANDALONE && lsGet(LS.iosHint) !== "1" && !ob.visible);
+  if (ob.visible) $("notice-backup").hidden = true;
+}
 function renderBackupReminder(now) {
   const last = S.lastBackupAt ? new Date(S.lastBackupAt) : null;
   $("backup-last").textContent = last && !isNaN(last) ? `前回の書き出し：${fmtFull(last)}` : "まだ書き出していません";
@@ -163,6 +185,12 @@ function renderBackupReminder(now) {
 installIconFallback();
 installEditorEvents();
 const { openDialog } = initDialog(app);
+const tour = createTour({
+  hasCompanies: () => S.docs.length > 0,
+  insertSamples: () => insertSamples(),
+  beforeStart: () => { closeMenu(); if (S.view !== "list") setView("list"); },
+  fallbackFocus: () => $("btn-menu").focus(),
+});
 initTemplatePanel(app);
 initBackupPanel(app);
 $("btn-backup-now").addEventListener("click", () => app.exportBackup && app.exportBackup());
@@ -242,12 +270,23 @@ document.addEventListener("keydown", (e) => {
 });
 
 /* ---------- header menu (phone) and .ics export ---------- */
+function closeMenu() {
+  $("btn-menu").setAttribute("aria-expanded", "false");
+  document.querySelector(".top-actions").classList.remove("open");
+}
 $("btn-menu").addEventListener("click", () => {
   const open = $("btn-menu").getAttribute("aria-expanded") !== "true";
   $("btn-menu").setAttribute("aria-expanded", String(open));
   document.querySelector(".top-actions").classList.toggle("open", open);
+  if (open) $("btn-ics").focus();
 });
-for (const id of ["btn-ics", "btn-backup", "btn-tpl"]) $(id).addEventListener("click", () => {
+document.addEventListener("click", (e) => {
+  if ($("btn-menu").getAttribute("aria-expanded") === "true" && !e.target.closest(".top-actions")) closeMenu();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("btn-menu").getAttribute("aria-expanded") === "true") { closeMenu(); $("btn-menu").focus(); }
+});
+for (const id of ["btn-ics", "btn-backup", "btn-tpl", "btn-onboard", "btn-tour", "btn-help"]) $(id).addEventListener("click", () => {
   $("btn-menu").setAttribute("aria-expanded", "false");
   document.querySelector(".top-actions").classList.remove("open");
 });
@@ -289,14 +328,60 @@ $("btn-samples-yes").addEventListener("click", async () => {
   finally { btn.disabled = false; }
 });
 
-/* iOS install hint */
-{
-  const ua = navigator.userAgent || "";
-  const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const standalone = navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
-  if (ios && !standalone && lsGet(LS.iosHint) !== "1") $("ios-hint").hidden = false;
-  $("btn-ios-hint-close").addEventListener("click", () => { $("ios-hint").hidden = true; lsSet(LS.iosHint, "1"); });
+/* iOS install hint (shown by renderFirstRun once the checklist is out of the way) */
+$("btn-ios-hint-close").addEventListener("click", () => { $("ios-hint").hidden = true; lsSet(LS.iosHint, "1"); });
+
+/* ---------- はじめかた / ツアー / 使い方 ---------- */
+function obMsg(id, text) { const m = $(`ob-msg-${id}`); if (m) m.textContent = text; }
+function showAdvanceButton() {
+  if (!S.docs.some((c) => !c.example)) { obMsg("advance", "先に企業を1社登録してください。"); return; }
+  if (S.view !== "list") setView("list");
+  S.q = ""; $("q").value = ""; S.pri = "all"; $("f-priority").value = "all"; S.kind = "all"; S.scope = "all"; $("f-scope").value = "all";
+  render();
+  const btn = $("main").querySelector('[data-act="advance"]');
+  if (!btn) { obMsg("advance", "「次へ →」は選考中の企業の行に表示されます。"); return; }
+  btn.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  btn.classList.add("spot"); btn.focus({ preventScroll: true });
+  setTimeout(() => btn.classList.remove("spot"), 3000);
 }
+$("onboard").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-ob], #btn-ob-close");
+  if (!b) return;
+  if (b.id === "btn-ob-close") { lsSet(LS.obDismissed, "1"); OB.forced = false; render(); $("btn-add").focus(); return; }
+  const k = b.dataset.ob;
+  if (k === "add") openDialog(null);
+  else if (k === "event") {
+    const c = latestOwnCompany(S.docs);
+    if (c) openDialog(c.id, null, { tab: "events" });
+    else { openDialog(null); setTimeout(() => $("c-first-date").focus(), 0); }
+  } else if (k === "advance") showAdvanceButton();
+  else if (k === "protect") { if (app.exportBackup) app.exportBackup(); }
+  else if (k === "samples") { b.disabled = true; insertSamples(); }
+  else if (k === "tour") tour.start();
+});
+function openChecklist() {
+  OB.forced = true; lsSet(LS.obDismissed, ""); render();
+  $("onboard").scrollIntoView({ block: "start" });
+  const t = $("ob-title"); if (t) { t.tabIndex = -1; t.focus(); }
+}
+function toggleHelp(open = $("help-panel").hidden) {
+  $("help-panel").hidden = !open;
+  $("btn-help").setAttribute("aria-expanded", String(open));
+  if (open) { $("help-panel").scrollIntoView({ block: "nearest" }); $("help-panel").querySelector("summary").focus(); }
+}
+$("btn-onboard").addEventListener("click", openChecklist);
+$("btn-tour").addEventListener("click", () => tour.start());
+$("btn-help").addEventListener("click", () => toggleHelp());
+$("btn-help-close").addEventListener("click", () => { toggleHelp(false); $("btn-menu").focus(); });
+$("help-panel").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-help]"); if (!b) return;
+  const k = b.dataset.help;
+  if (k === "onboard") openChecklist();
+  else if (k === "tour") tour.start();
+  else if (k === "backup") { if ($("backup-panel").hidden) $("btn-backup").click(); $("backup-panel").scrollIntoView({ block: "nearest" }); }
+  else if (k === "ics") { if ($("ics-panel").hidden) $("btn-ics").click(); }
+  else if (k === "tpl") { if ($("tpl-panel").hidden) $("btn-tpl").click(); }
+});
 
 /* start */
 const today = new Date();

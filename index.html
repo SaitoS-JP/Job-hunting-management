@@ -35,10 +35,16 @@
         <button type="button" class="btn" id="btn-ics" aria-expanded="false" aria-controls="ics-panel">カレンダーに書き出し</button>
         <button type="button" class="btn" id="btn-backup" aria-expanded="false" aria-controls="backup-panel">バックアップ</button>
         <button type="button" class="btn" id="btn-tpl" aria-expanded="false" aria-controls="tpl-panel">段階テンプレート</button>
+        <span class="menu-sep" role="separator"></span>
+        <button type="button" class="btn" id="btn-onboard">はじめかた</button>
+        <button type="button" class="btn" id="btn-tour">使い方ツアー</button>
+        <button type="button" class="btn" id="btn-help" aria-expanded="false" aria-controls="help-panel">使い方（よくある質問）</button>
       </span>
       <button type="button" class="btn primary" id="btn-add">＋ 企業を追加</button>
     </div>
   </header>
+
+  <section class="onboard" id="onboard" aria-labelledby="ob-title" hidden></section>
 
   <div class="ios-hint" id="ios-hint" role="note" hidden>
     <span class="grow">共有ボタン → ホーム画面に追加 でアプリとして使えます</span>
@@ -73,6 +79,46 @@
       </div>
       <p class="hint" style="margin-top:8px">「追加」は今のデータを残したまま加えます。「置き換え」は今のデータをすべて消してから読み込みます（元に戻せません）。途中で失敗した場合は何も変更されません。</p>
     </div>
+  </section>
+
+  <section class="panel help" id="help-panel" aria-labelledby="help-h" hidden>
+    <div class="help-head"><h2 id="help-h">使い方</h2><button type="button" class="btn small ghost" id="btn-help-close">閉じる</button></div>
+    <details>
+      <summary>何から始めればいい？</summary>
+      <p>まずは応募した（または気になる）企業を1社、社名だけで登録しましょう。締切や面接日を「次の予定」に入れておくと、上の「直近の予定」に並びます。</p>
+      <p class="row"><button type="button" class="btn small" data-help="onboard">はじめかたを開く</button><button type="button" class="btn small" data-help="tour">使い方ツアーを見る</button></p>
+    </details>
+    <details>
+      <summary>データはどこに保存される？</summary>
+      <p>このブラウザの中（この端末）だけに保存され、どこにも送信されません。ブラウザのデータを消すと消えてしまうので、ときどきバックアップを書き出してください。</p>
+      <p class="row"><button type="button" class="btn small" data-help="backup">バックアップを開く</button></p>
+    </details>
+    <details>
+      <summary>スマホとパソコンで両方使うには？</summary>
+      <p>データは端末ごとに別々です。片方で「バックアップ → 書き出し」をして、そのファイルをもう片方の「バックアップ → 読み込み」で取り込みます。</p>
+    </details>
+    <details>
+      <summary>締切の通知を受け取るには？</summary>
+      <p>「カレンダーに書き出し」で予定を .ics ファイルにして、iPhone や Google カレンダーに取り込むと、カレンダーアプリが「3日前」「前日」などに通知してくれます。</p>
+      <p class="row"><button type="button" class="btn small" data-help="ics">カレンダーに書き出しを開く</button></p>
+    </details>
+    <details>
+      <summary>「内定」の印とは？</summary>
+      <p>選考段階のうち「内定」にあたる段階につける印です。その段階（と、その後の内定承諾などの段階）にいる企業が「内定」として数えられます。</p>
+    </details>
+    <details>
+      <summary>選考段階を変えるには？</summary>
+      <p>一覧の「次へ →」「← 戻る」で1段ずつ動かせます。段階の名前や並びは、企業の編集画面の「詳しく入力する → この企業の選考段階を編集」で、これから追加する企業の分は「段階テンプレート」で変えられます。</p>
+      <p class="row"><button type="button" class="btn small" data-help="tpl">段階テンプレートを開く</button></p>
+    </details>
+    <details>
+      <summary>インターンと本選考を分けるには？</summary>
+      <p>企業ごとに「選考の種類」を選べます。同じ企業でインターンと本選考の両方を受けるときは、編集画面の「同じ企業で別の選考を追加」で分けて登録すると便利です。</p>
+    </details>
+    <details>
+      <summary>ESを他社で使い回すには？</summary>
+      <p>企業の編集画面の「ES」タブで「他社のESから使う」を押すと、ほかの企業で書いたESを検索してコピーできます。コピーした内容は元のESとは別に保存されます。</p>
+    </details>
   </section>
 
   <section class="panel" id="ics-panel" aria-labelledby="ics-h" hidden>
@@ -375,6 +421,17 @@
     </div>
   </form>
 </dialog>
+
+<div class="tour" id="tour" hidden>
+  <div class="tour-block" id="tour-block"></div>
+  <div class="tour-hole" id="tour-hole" aria-hidden="true"></div>
+  <div class="tour-tip" id="tour-tip" role="dialog" aria-modal="true" aria-labelledby="tour-title" aria-describedby="tour-text">
+    <p class="tour-count num" id="tour-count"></p>
+    <h2 class="tour-title" id="tour-title" tabindex="-1"></h2>
+    <p class="tour-text" id="tour-text" aria-live="polite"></p>
+    <div class="tour-btns" id="tour-btns"></div>
+  </div>
+</div>
 
 <script type="module" src="./js/main.js"></script>
 </body>
