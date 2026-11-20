@@ -1,5 +1,5 @@
 /* 就活ボード service worker — offline app shell. Bump VERSION on every release. */
-const VERSION = "v15";
+const VERSION = "v16";
 const SHELL_CACHE = "shukatsu-shell-" + VERSION;
 const FONT_CACHE = "shukatsu-fonts-v2";
 const SHELL = [
@@ -33,6 +33,9 @@ const SHELL = [
   "./js/compare.js",
   "./js/ics-sync.js",
   "./js/crypto-backup.js",
+  "./js/themes.js",
+  "./js/theme-boot.js",
+  "./js/ui/theme-panel.js",
   "./js/ui/compare.js",
   "./js/ui/onboarding-card.js",
   "./js/ui/tour.js",
@@ -43,6 +46,11 @@ const SHELL = [
   "./icons/icon-512-maskable.png",
   "./icons/favicon-32.png",
   "./fonts/fonts.css",
+  "./themes.css",
+  "./fonts/theme-pop.css",
+  "./fonts/theme-wa.css",
+  "./fonts/theme-yo.css",
+  "./fonts/theme-sf.css",
 ];
 
 self.addEventListener("install", (event) => {

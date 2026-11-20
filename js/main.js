@@ -25,6 +25,7 @@ import { initTemplatePanel, initBackupPanel } from "./ui/panels.js";
 const LS = { sort: "shukatsu.sort", iosHint: "shukatsu.iosHintDismissed", view: "shukatsu.view", backupSnooze: "shukatsu.backupSnoozeUntil", obDismissed: "shukatsu.onboardDismissed", icsDismiss: "shukatsu.icsHintDismissed", obDoneSeen: "shukatsu.onboardDoneSeen" };
 import { renderOnboarding } from "./ui/onboarding-card.js";
 import { createTour } from "./ui/tour.js";
+import { initThemePanel } from "./ui/theme-panel.js";
 import { latestOwnCompany } from "./onboarding.js";
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
@@ -234,6 +235,7 @@ function renderBackupReminder(now) {
 installIconFallback();
 installEditorEvents();
 const { openDialog } = initDialog(app);
+initThemePanel(app);
 const tour = createTour({
   hasCompanies: () => S.docs.length > 0,
   insertSamples: () => insertSamples(),
@@ -352,7 +354,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && $("btn-menu").getAttribute("aria-expanded") === "true") { closeMenu(); $("btn-menu").focus(); }
 });
-for (const id of ["btn-ics", "btn-backup", "btn-tpl", "btn-onboard", "btn-tour", "btn-help"]) $(id).addEventListener("click", () => {
+for (const id of ["btn-ics", "btn-backup", "btn-tpl", "btn-onboard", "btn-tour", "btn-help", "btn-theme"]) $(id).addEventListener("click", () => {
   $("btn-menu").setAttribute("aria-expanded", "false");
   document.querySelector(".top-actions").classList.remove("open");
 });
@@ -471,7 +473,7 @@ $("btn-samples-yes").addEventListener("click", async () => {
    half-finished import, switches to 一覧 and scrolls to the top. Search and
    filters stay. An open dialog is modal, so the title cannot be tapped then;
    unsaved edits are never discarded from here. */
-const PANELS = [["backup-panel", "btn-backup"], ["ics-panel", "btn-ics"], ["tpl-panel", "btn-tpl"], ["help-panel", "btn-help"]];
+const PANELS = [["backup-panel", "btn-backup"], ["ics-panel", "btn-ics"], ["tpl-panel", "btn-tpl"], ["help-panel", "btn-help"], ["theme-panel", "btn-theme"]];
 function goHome() {
   closeMenu();
   for (const [panel, btn] of PANELS) { $(panel).hidden = true; $(btn).setAttribute("aria-expanded", "false"); }
@@ -537,6 +539,7 @@ $("help-panel").addEventListener("click", (e) => {
   else if (k === "tour") tour.start();
   else if (k === "backup") { if ($("backup-panel").hidden) $("btn-backup").click(); $("backup-panel").scrollIntoView({ block: "nearest" }); }
   else if (k === "ics") openIcsPanel(true);
+  else if (k === "theme") { toggleHelp(false); app.openThemePanel(true); }
   else if (k === "compare") { toggleHelp(false); setView("compare"); $("view-cmp").focus(); }
   else if (k === "tpl") { if ($("tpl-panel").hidden) $("btn-tpl").click(); }
 });
@@ -548,6 +551,7 @@ render();
 (async () => {
   store = await openStore();
   S.mode = store.kind;
+  app.syncTheme().catch(() => {});
   if (S.mode === "idb" && navigator.storage && navigator.storage.persist) {
     try { if (!(await navigator.storage.persisted())) await navigator.storage.persist(); } catch (e) {}
   }

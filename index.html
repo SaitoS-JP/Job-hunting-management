@@ -18,8 +18,10 @@
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="./icons/icon-192.png" sizes="192x192" type="image/png">
 <link rel="apple-touch-icon" href="./icons/icon-180.png">
+<script src="./js/theme-boot.js"></script>
 <link rel="stylesheet" href="./fonts/fonts.css">
 <link rel="stylesheet" href="./app.css">
+<link rel="stylesheet" href="./themes.css">
 </head>
 <body>
 <div class="wrap">
@@ -39,6 +41,7 @@
         <button type="button" class="btn" id="btn-onboard">はじめかた</button>
         <button type="button" class="btn" id="btn-tour">使い方ツアー</button>
         <button type="button" class="btn" id="btn-help" aria-expanded="false" aria-controls="help-panel">使い方（よくある質問）</button>
+        <button type="button" class="btn" id="btn-theme" aria-expanded="false" aria-controls="theme-panel">テーマ（見た目）</button>
       </span>
       <button type="button" class="btn primary" id="btn-add">＋ 企業を追加</button>
     </div>
@@ -102,11 +105,27 @@
     </div>
   </section>
 
+  <section class="panel" id="theme-panel" aria-labelledby="theme-h" hidden>
+    <div class="help-head"><h2 id="theme-h">テーマ</h2><button type="button" class="btn small ghost" id="btn-theme-close">閉じる</button></div>
+    <p>背景・色・字体のセットを選べます。中身や使い方は変わりません。明るい／暗い表示は端末の設定に合わせます。</p>
+    <div class="theme-grid" id="theme-grid" role="radiogroup" aria-labelledby="theme-h"></div>
+    <div class="row" style="margin-top:10px">
+      <button type="button" class="btn" id="btn-theme-reset">標準に戻す</button>
+      <span class="hint" id="theme-msg" role="status"></span>
+    </div>
+    <p class="hint">テーマはこの端末だけに保存されます（バックアップには含まれません）。</p>
+  </section>
+
   <section class="panel help" id="help-panel" aria-labelledby="help-h" hidden>
     <div class="help-head"><h2 id="help-h">使い方</h2><button type="button" class="btn small ghost" id="btn-help-close">閉じる</button></div>
     <details>
       <summary>最初の画面に戻るには？</summary>
       <p>左上の「就活ボード」を押すと最初の画面（一覧）に戻ります。開いているメニューやパネルも閉じます。</p>
+    </details>
+    <details>
+      <summary>見た目（テーマ）を変えるには？</summary>
+      <p>メニューの「テーマ（見た目）」で、標準・ポップ・和風・洋風・SF から選べます。選ぶとすぐに切り替わり、この端末に保存されます。</p>
+      <p class="row"><button type="button" class="btn small" data-help="theme">テーマを開く</button></p>
     </details>
     <details>
       <summary>何から始めればいい？</summary>

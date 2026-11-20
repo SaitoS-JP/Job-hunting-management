@@ -1,0 +1,122 @@
+/* テーマ（標準以外）: 色・角丸・字体のトークン。標準は app.css の :root。
+   html か、プレビュー用の要素に data-theme-name を付けると、その中だけこのトークンになります。
+   各テーマは明るい／暗い両方で同じ名前のトークンをすべて定義します（tests/themes.test.js がコントラストも確認）。 */
+
+[data-theme-name="pop"]{
+  --bg:#fbf6f1; --surface:#ffffff; --surface-2:#f6eef4; --surface-3:#eee3ec; --ink:#2b2238; --ink-2:#55476a;
+  --ink-3:#776a8c; --line:#e6d9e6; --rule:#f0e7ef; --accent:#b8286f; --accent-ink:#ffffff; --accent-soft:#fbe3ef;
+  --danger:#b5232b; --danger-soft:#fde4e4; --warn:#805300; --warn-soft:#fbefcf; --ok:#1d7450; --ok-soft:#d9f3e6;
+  --muted:#a59bb3; --muted-soft:#f0ecf3; --chip:#fff1b8; --chip-ink:#644e00; --focus:#b8286f; --shadow:0 2px 0 rgba(120,60,110,.05), 0 4px 14px rgba(120,60,110,.08);
+  --overlay:rgba(43,34,56,.45); --st-interest:#857c94; --st-entry:#4f72c4; --st-es:#8150bd; --st-test:#22827d; --st-gd:#9e6c00;
+  --st-interview2:#c4512f; --st-final:#a63b86; --st-offer:#1d7450; --st-rejected:#b5232b; --st-declined:#857c94; --mg0-b:#dfe8ff;
+  --mg0-i:#2f4f9a; --mg1-b:#d9f5e8; --mg1-i:#1f6b4c; --mg2-b:#fff0c2; --mg2-i:#6e5100; --mg3-b:#efe2fb;
+  --mg3-i:#663b90; --mg4-b:#ffe0ea; --mg4-i:#962c58; --mg5-b:#d8f2f4; --mg5-i:#1d6770; --step-off:#efe8f0;
+  --step-off-ink:#776a8c;
+  --font-body:"Zen Maru Gothic","Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic UI","Meiryo",system-ui,sans-serif; --font-head:"Zen Maru Gothic","Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic UI","Meiryo",system-ui,sans-serif; --font-num:"Zen Maru Gothic",ui-monospace,monospace; --r:12px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  [data-theme-name="pop"]{
+  --bg:#1f1830; --surface:#2a2140; --surface-2:#33294b; --surface-3:#3d3257; --ink:#f4eefb; --ink-2:#d3c8e3;
+  --ink-3:#ab9dc0; --line:#463a5e; --rule:#382d4f; --accent:#ff9cc9; --accent-ink:#2a0f1e; --accent-soft:#4a2440;
+  --danger:#ff9e9e; --danger-soft:#4a2228; --warn:#ffd479; --warn-soft:#4a3a1a; --ok:#8be3b8; --ok-soft:#1f4034;
+  --muted:#7d6f94; --muted-soft:#33294b; --chip:#4a4320; --chip-ink:#ffe58a; --focus:#ff9cc9; --shadow:0 1px 0 rgba(0,0,0,.3), 0 6px 18px rgba(0,0,0,.25);
+  --overlay:rgba(10,6,20,.65); --st-interest:#b3a8c6; --st-entry:#9db8ff; --st-es:#c9a6ff; --st-test:#7fe0d6; --st-gd:#ffc861;
+  --st-interview2:#ff9f84; --st-final:#f59ad6; --st-offer:#8be3b8; --st-rejected:#ff9e9e; --st-declined:#b3a8c6; --mg0-b:#2c3560;
+  --mg0-i:#bccbff; --mg1-b:#234638; --mg1-i:#a5ebc9; --mg2-b:#4a3f1d; --mg2-i:#ffe08a; --mg3-b:#3d2d5c;
+  --mg3-i:#dcc4ff; --mg4-b:#4f2340; --mg4-i:#ffb6d2; --mg5-b:#1f4448; --mg5-i:#a3e7ee; --step-off:#3a3052;
+  --step-off-ink:#ab9dc0;
+    color-scheme:dark;
+  }
+}
+[data-theme-name="pop"] .btn,[data-theme-name="pop"] .qa,[data-theme-name="pop"] .chip{border-radius:999px}
+[data-theme-name="pop"] .lrow .who button{letter-spacing:.02em}
+
+[data-theme-name="wa"]{
+  --bg:#f5f1e8; --surface:#fbf8f1; --surface-2:#efe9dc; --surface-3:#e6dfcf; --ink:#1d1c1a; --ink-2:#4a463f;
+  --ink-3:#68625a; --line:#d6cdbb; --rule:#e5ddcc; --accent:#1f3a68; --accent-ink:#ffffff; --accent-soft:#dde3ee;
+  --danger:#a8291f; --danger-soft:#f5ddd7; --warn:#765400; --warn-soft:#f1e6c8; --ok:#2f6b3a; --ok-soft:#dce9d9;
+  --muted:#9a9386; --muted-soft:#ece6da; --chip:#f3dcd3; --chip-ink:#862819; --focus:#c4402f; --shadow:0 1px 0 rgba(60,50,30,.06);
+  --overlay:rgba(29,28,26,.5); --st-interest:#837d71; --st-entry:#3b5a8c; --st-es:#5b4f8a; --st-test:#2f6f6a; --st-gd:#8f630f;
+  --st-interview2:#b73a2a; --st-final:#7a3b5c; --st-offer:#2f6b3a; --st-rejected:#a8291f; --st-declined:#837d71; --mg0-b:#dfe4ee;
+  --mg0-i:#1f3a68; --mg1-b:#dde8d8; --mg1-i:#2f5a33; --mg2-b:#f1e5c8; --mg2-i:#6a4c0b; --mg3-b:#e8dfe8;
+  --mg3-i:#5a3a5c; --mg4-b:#f3dcd3; --mg4-i:#862819; --mg5-b:#d9e7e4; --mg5-i:#245a55; --step-off:#e8e1d2;
+  --step-off-ink:#6c665b;
+  --font-head:"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif; --r:2px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  [data-theme-name="wa"]{
+  --bg:#171513; --surface:#201d1a; --surface-2:#29251f; --surface-3:#322d26; --ink:#ece6da; --ink-2:#c4bba9;
+  --ink-3:#9c9383; --line:#3d372f; --rule:#2f2a24; --accent:#d9b25f; --accent-ink:#1c1608; --accent-soft:#3b321c;
+  --danger:#f08b78; --danger-soft:#3d221c; --warn:#e3be62; --warn-soft:#3a301a; --ok:#9cc98f; --ok-soft:#24331f;
+  --muted:#6e675b; --muted-soft:#29251f; --chip:#3d241c; --chip-ink:#f2a58f; --focus:#f07a5f; --shadow:0 1px 0 rgba(0,0,0,.3);
+  --overlay:rgba(0,0,0,.65); --st-interest:#a39a89; --st-entry:#8fa8d6; --st-es:#b3a5e0; --st-test:#8cc6bf; --st-gd:#dcb05a;
+  --st-interview2:#f08b6e; --st-final:#d699b8; --st-offer:#9cc98f; --st-rejected:#f08b78; --st-declined:#a39a89; --mg0-b:#26314a;
+  --mg0-i:#b8c8ea; --mg1-b:#25331f; --mg1-i:#b4d6a8; --mg2-b:#3d321a; --mg2-i:#e8c983; --mg3-b:#33263a;
+  --mg3-i:#d9bce0; --mg4-b:#3d221c; --mg4-i:#f2a58f; --mg5-b:#1f3330; --mg5-i:#a9d6cf; --step-off:#322d26;
+  --step-off-ink:#9c9383;
+    color-scheme:dark;
+  }
+}
+[data-theme-name="wa"] body{background-image:linear-gradient(90deg, rgba(120,100,60,.025) 1px, transparent 1px); background-size:3px 3px}
+[data-theme-name="wa"] .top{border-bottom-width:1px; box-shadow:0 3px 0 -2px var(--ink)}
+
+[data-theme-name="yo"]{
+  --bg:#f6f1e4; --surface:#fffcf4; --surface-2:#f0e9d8; --surface-3:#e7dec8; --ink:#1b2130; --ink-2:#464b58;
+  --ink-3:#65676f; --line:#d8ceb6; --rule:#e7dfcb; --accent:#1d2f5e; --accent-ink:#ffffff; --accent-soft:#dde2ee;
+  --danger:#8c1d2c; --danger-soft:#f2dde0; --warn:#735510; --warn-soft:#f0e5c6; --ok:#2e5e3e; --ok-soft:#dbe7dc;
+  --muted:#9b9585; --muted-soft:#ede6d6; --chip:#efe0b8; --chip-ink:#634a10; --focus:#1d2f5e; --shadow:0 1px 0 rgba(40,30,10,.05), 0 2px 6px rgba(40,30,10,.06);
+  --overlay:rgba(27,33,48,.5); --st-interest:#807a6d; --st-entry:#2c4a86; --st-es:#5a4b86; --st-test:#2f6a6a; --st-gd:#8c6a12;
+  --st-interview2:#a04f27; --st-final:#6b2f55; --st-offer:#2e5e3e; --st-rejected:#8c1d2c; --st-declined:#807a6d; --mg0-b:#dfe3ef;
+  --mg0-i:#1d2f5e; --mg1-b:#dde8de; --mg1-i:#2e5e3e; --mg2-b:#f0e5c6; --mg2-i:#634a10; --mg3-b:#e9e0ea;
+  --mg3-i:#5a3756; --mg4-b:#f2dde0; --mg4-i:#8c1d2c; --mg5-b:#dbe7e7; --mg5-i:#26575a; --step-off:#ebe3d0;
+  --step-off-ink:#6f6a5c;
+  --font-head:"EB Garamond","Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif; --font-num:"EB Garamond","Shippori Mincho B1",serif; --r:3px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  [data-theme-name="yo"]{
+  --bg:#10201a; --surface:#172a22; --surface-2:#1e342a; --surface-3:#263f33; --ink:#efe8d6; --ink-2:#c9c0a8;
+  --ink-3:#9d977f; --line:#34493e; --rule:#263b31; --accent:#d6b56b; --accent-ink:#1a1406; --accent-soft:#3a3420;
+  --danger:#f0959c; --danger-soft:#3e2125; --warn:#e4c36e; --warn-soft:#3a3320; --ok:#a5d3a5; --ok-soft:#213a2b;
+  --muted:#6c7a70; --muted-soft:#1e342a; --chip:#3a3320; --chip-ink:#ead08c; --focus:#d6b56b; --shadow:0 1px 0 rgba(0,0,0,.3);
+  --overlay:rgba(0,0,0,.6); --st-interest:#a7a491; --st-entry:#9fb4e3; --st-es:#bcade6; --st-test:#8fcfc6; --st-gd:#e0bd62;
+  --st-interview2:#f0a77e; --st-final:#e0a2c8; --st-offer:#a5d3a5; --st-rejected:#f0959c; --st-declined:#a7a491; --mg0-b:#213048;
+  --mg0-i:#bccbeb; --mg1-b:#223b2c; --mg1-i:#b0d9b0; --mg2-b:#3b3420; --mg2-i:#ead08c; --mg3-b:#33283b;
+  --mg3-i:#dcc2e3; --mg4-b:#3e2125; --mg4-i:#f3b0b6; --mg5-b:#1d3a38; --mg5-i:#a9dbd3; --step-off:#263f33;
+  --step-off-ink:#9d977f;
+    color-scheme:dark;
+  }
+}
+[data-theme-name="yo"] .num{font-variant-numeric:lining-nums tabular-nums}
+[data-theme-name="yo"] .top{border-bottom:3px double var(--ink)}
+[data-theme-name="yo"] h1,[data-theme-name="yo"] h2{letter-spacing:.06em}
+
+[data-theme-name="sf"]{
+  --bg:#e9eef4; --surface:#f8fafc; --surface-2:#dfe6ee; --surface-3:#d3dce7; --ink:#0b1524; --ink-2:#36475c;
+  --ink-3:#56667b; --line:#c3cfdc; --rule:#d5dee8; --accent:#006a81; --accent-ink:#ffffff; --accent-soft:#d3eef4;
+  --danger:#ab1257; --danger-soft:#f7dbe8; --warn:#735600; --warn-soft:#f3e7c4; --ok:#0f6e4c; --ok-soft:#d3efe3;
+  --muted:#8a98a9; --muted-soft:#e3e9f0; --chip:#e7dcfb; --chip-ink:#5527a6; --focus:#006a81; --shadow:0 1px 0 rgba(10,30,60,.05), 0 0 0 1px rgba(0,106,129,.06);
+  --overlay:rgba(11,21,36,.5); --st-interest:#66758a; --st-entry:#2e5fb8; --st-es:#6b3fc4; --st-test:#006a81; --st-gd:#7f5c00;
+  --st-interview2:#ad4e1c; --st-final:#a2287f; --st-offer:#0f6e4c; --st-rejected:#ab1257; --st-declined:#66758a; --mg0-b:#dbe6fb;
+  --mg0-i:#22489a; --mg1-b:#d3efe3; --mg1-i:#0f5c40; --mg2-b:#f3e7c4; --mg2-i:#634a00; --mg3-b:#e7dcfb;
+  --mg3-i:#5527a6; --mg4-b:#f7dbe8; --mg4-i:#951049; --mg5-b:#d3eef4; --mg5-i:#005d72; --step-off:#dfe6ee;
+  --step-off-ink:#56667b;
+  --font-head:"DotGothic16","Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic UI","Meiryo",system-ui,sans-serif; --font-num:"Share Tech Mono",ui-monospace,"SFMono-Regular",Menlo,monospace; --r:4px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  [data-theme-name="sf"]{
+  --bg:#070b14; --surface:#0e1524; --surface-2:#142037; --surface-3:#1b2a45; --ink:#e3f1ff; --ink-2:#a9c1db;
+  --ink-3:#8199b5; --line:#23365a; --rule:#1a2944; --accent:#3ee6ff; --accent-ink:#021018; --accent-soft:#0d3240;
+  --danger:#ff6b9a; --danger-soft:#3a1426; --warn:#ffd166; --warn-soft:#3a3016; --ok:#5cf2b0; --ok-soft:#0f3a2c;
+  --muted:#5b6f8a; --muted-soft:#142037; --chip:#2a1a46; --chip-ink:#d6b6ff; --focus:#3ee6ff; --shadow:0 0 0 1px rgba(62,230,255,.08);
+  --overlay:rgba(2,4,10,.72); --st-interest:#8ea3bd; --st-entry:#6fa8ff; --st-es:#b48cff; --st-test:#3ee6ff; --st-gd:#ffd166;
+  --st-interview2:#ff9f6b; --st-final:#ff6bd5; --st-offer:#5cf2b0; --st-rejected:#ff6b9a; --st-declined:#8ea3bd; --mg0-b:#10284a;
+  --mg0-i:#8fc2ff; --mg1-b:#0d3a2e; --mg1-i:#7ef5c2; --mg2-b:#3a3010; --mg2-i:#ffd98a; --mg3-b:#2a1a46;
+  --mg3-i:#d6b6ff; --mg4-b:#3a1430; --mg4-i:#ff9ee4; --mg5-b:#08343d; --mg5-i:#7ff0ff; --step-off:#1b2a45;
+  --step-off-ink:#8199b5;
+    color-scheme:dark;
+  }
+}
+[data-theme-name="sf"] .btn.primary{box-shadow:0 0 0 1px var(--accent), 0 0 14px -2px var(--accent)}
+[data-theme-name="sf"] :focus-visible{outline-color:var(--focus); box-shadow:0 0 12px -2px var(--focus)}
+[data-theme-name="sf"] .top{border-bottom-color:var(--accent)}
+[data-theme-name="sf"] h1,[data-theme-name="sf"] h2{letter-spacing:.08em}
