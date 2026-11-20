@@ -130,7 +130,7 @@ test("v5 keeps the offer flag and ES limit; v4 migrates the flag", () => {
   const c = normalize({ id: "a", name: "社", stages: stages.map((s, i) => ({ ...s, offer: i === 1 })), stage: "s2", notes: { es: [{ id: "q", question: "志望動機", answer: "x", limit: 400 }] } });
   const v5 = validateBackup(JSON.stringify(serializeBackup({ companies: [c], template: DEFAULT_STAGES, icons: {} })));
   assert.equal(v5.ok, true);
-  assert.equal(v5.version, 5);
+  assert.equal(v5.version, BACKUP_VERSION);
   assert.deepEqual(v5.companies[0].stages.map((s) => s.offer), [false, true, false]);
   assert.equal(v5.companies[0].notes.es[0].limit, 400);
   assert.equal(v5.template[7].offer, true);
@@ -141,4 +141,19 @@ test("v5 keeps the offer flag and ES limit; v4 migrates the flag", () => {
   assert.equal(v4.template[0].offer, false); // no 内定 anywhere: none, not the last stage
   const bad = validateBackup(file({ version: 5, companies: [{ name: "a", notes: { es: [{ answer: "x", limit: 99999 }] } }] }));
   assert.equal(bad.ok, false);
+});
+
+test("v6 keeps compare conditions; v5 migrates to empty; bad conditions reject", () => {
+  const c = normalize({ id: "a", name: "社", compare: { salary: 250000, housing: "あり", ratings: { work: 4 } } });
+  const v6 = validateBackup(JSON.stringify(serializeBackup({ companies: [c], template: DEFAULT_STAGES, icons: {} })));
+  assert.equal(v6.ok, true);
+  assert.equal(v6.version, 6);
+  assert.equal(v6.companies[0].compare.salary, 250000);
+  assert.equal(v6.companies[0].compare.ratings.work, 4);
+  const v5 = validateBackup(file({ version: 5, companies: [{ id: "b", name: "旧" }] }));
+  assert.equal(v5.ok, true);
+  assert.equal(v5.companies[0].compare.salary, null);
+  const bad = validateBackup(file({ version: 6, companies: [{ name: "x", compare: { annual: "たくさん" } }] }));
+  assert.equal(bad.ok, false);
+  assert.match(bad.errors[0], /想定年収/);
 });

@@ -1,6 +1,7 @@
 /* Company records: defaults, normalization/migration and stage logic. Pure. */
 import { normalizeEvents } from "./events.js";
 import { normalizeKind, normalizeNotes } from "./notes.js";
+import { normalizeCompare } from "./compare.js";
 
 export const DEFAULT_STAGES = Object.freeze([
   { id: "interest", label: "気になる" },
@@ -196,6 +197,7 @@ export function normalize(d, idOverride) {
     url: typeof d.url === "string" && /^https?:\/\//i.test(d.url) ? d.url.slice(0, 2000) : "",
     memo: str(d.memo, 4000),
     notes: normalizeNotes(d.notes),
+    compare: normalizeCompare(d.compare),
     history,
     updatedAt: typeof d.updatedAt === "string" ? d.updatedAt : "",
     example: d.example === true,

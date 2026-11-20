@@ -1,4 +1,5 @@
 /* Selection kind (本選考 / インターン …) and ES・面接 notes. Pure. */
+import { compareSearchText } from "./compare.js";
 
 export const KINDS = Object.freeze(["本選考", "サマーインターン", "オータムインターン", "ウィンターインターン", "早期選考", "その他"]);
 export const DEFAULT_KIND = "本選考";
@@ -88,7 +89,7 @@ export function searchText(c) {
   const n = c.notes || { es: [], interviews: [] };
   return [c.name, c.position, c.industry, c.kind, c.memo,
     ...n.es.flatMap((e) => [e.question, e.answer]),
-    ...n.interviews.flatMap((e) => [e.title, e.questions, e.reflection])].join("\n").toLowerCase();
+    ...n.interviews.flatMap((e) => [e.title, e.questions, e.reflection]), compareSearchText(c.compare)].join("\n").toLowerCase();
 }
 export function matchesQuery(c, q) {
   const s = String(q || "").trim().toLowerCase();

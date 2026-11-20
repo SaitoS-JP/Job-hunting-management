@@ -71,7 +71,12 @@ export function selectForExport(companies, { range = "future", now = new Date() 
 export const uidFor = (company, event) => `${event.id}-${company.id}@shukatsu-board`;
 export const summaryFor = (c, e) => `${c.name}｜${e.label || stageLabel(c)}（${c.kind || "本選考"}）`;
 
-export function buildICS(items, { now = new Date(), reminders = DEFAULT_REMINDERS } = {}) {
+/**
+ * seq: {uid: n} from planExport(). SEQUENCE and LAST-MODIFIED let apps that
+ * honour UIDs (e.g. a Google Calendar import) update an event instead of
+ * adding a second copy.
+ */
+export function buildICS(items, { now = new Date(), reminders = DEFAULT_REMINDERS, seq = {} } = {}) {
   const L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//shukatsu-board//JA", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:就活ボード"];
   const stamp = utc(now);
   for (const { company: c, event: e } of items) {
@@ -80,7 +85,8 @@ export function buildICS(items, { now = new Date(), reminders = DEFAULT_REMINDER
     const allDay = !hasTime(start);
     const summary = summaryFor(c, e);
     const desc = [c.position && `職種：${c.position}`, `選考段階：${stageLabel(c)}`, c.url && `マイページ：${c.url}`].filter(Boolean).join("\n");
-    L.push("BEGIN:VEVENT", `UID:${uidFor(c, e)}`, `DTSTAMP:${stamp}`);
+    const uid = uidFor(c, e);
+    L.push("BEGIN:VEVENT", `UID:${uid}`, `DTSTAMP:${stamp}`, `LAST-MODIFIED:${stamp}`, `SEQUENCE:${Number.isInteger(seq[uid]) ? seq[uid] : 0}`);
     if (allDay) {
       const next = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
       L.push(`DTSTART;VALUE=DATE:${dateOnly(start)}`, `DTEND;VALUE=DATE:${dateOnly(next)}`);
