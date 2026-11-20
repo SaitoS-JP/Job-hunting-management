@@ -54,7 +54,19 @@
 - 検索（社名・職種・種類・メモ・ES・面接の記録）、志望度・種類・選考中のみの絞り込み、並び替え（次の予定日／志望度／段階／更新日）
 - 「次へ →」「← 戻る」「不合格」「辞退」ワンタップで段階を更新。不合格・辞退にした企業は「選考中に戻す」で直前の段階に戻せます。変更はすべて履歴に残ります
 - 企業ごとのアイコン（画像を選ぶか貼り付け。未設定なら社名の頭文字）
+- **テーマ**：メニューの「テーマ（見た目）」で、標準・ポップ・和風・洋風・SF の5種類から背景・色・字体を選べます（それぞれ明るい／暗い表示に対応。この端末だけに保存）
+- 左上の「就活ボード」を押すと、いつでも最初の画面（一覧）に戻れます
 - ホーム画面に追加してアプリとして使え、オフラインでも動きます
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/theme-pop.png" width="160" alt="テーマ：ポップ"></td>
+    <td><img src="docs/screenshots/theme-wa.png" width="160" alt="テーマ：和風"></td>
+    <td><img src="docs/screenshots/theme-yo.png" width="160" alt="テーマ：洋風"></td>
+    <td><img src="docs/screenshots/theme-sf.png" width="160" alt="テーマ：SF"></td>
+  </tr>
+  <tr><td align="center">ポップ</td><td align="center">和風</td><td align="center">洋風</td><td align="center">SF</td></tr>
+</table>
 
 ## プライバシー
 
