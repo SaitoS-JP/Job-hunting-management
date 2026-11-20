@@ -223,7 +223,7 @@ a{color:var(--accent)}
 /* dialog */
 dialog{border:1px solid var(--line); border-radius:8px; padding:0; background:var(--surface); color:var(--ink); width:min(640px, calc(100vw - 24px)); max-height:calc(100dvh - 24px); box-shadow:0 12px 40px rgba(0,0,0,.25)}
 dialog::backdrop{background:var(--overlay)}
-.dlg-h{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 18px; border-bottom:1px solid var(--rule); position:sticky; top:0; background:var(--surface); z-index:1}
+.dlg-h{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 18px 10px}
 .dlg-h h2{margin:0; font-size:16px}
 .dlg-b{padding:14px 18px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 14px}
 .dlg-b .full{grid-column:1/-1}
@@ -306,10 +306,126 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
   .top{align-items:center}
   .top-actions{width:100%}
   .top-actions .btn.primary{flex:1 1 auto}
-  .toolbar{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+  .toolbar{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px}
   .toolbar .search{grid-column:1/-1}
   .field-inline{min-width:0}
   .field-inline label{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
   .field-inline .select{width:100%; min-width:0; padding-left:8px}
   .count-line{grid-column:1/-1; text-align:right}
+}
+
+/* ---- dialog tabs ---- */
+.dlg-top{position:sticky; top:0; z-index:2; background:var(--surface); border-bottom:1px solid var(--rule)}
+.ttl-t{display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; min-width:0}
+.ttl-t .chip{margin-left:0}
+.dlg-tabs{display:flex; gap:2px; padding:0 12px; overflow-x:auto; scrollbar-width:none}
+.dlg-tabs button{flex:none; min-height:38px; padding:6px 12px; border:0; border-bottom:2px solid transparent; background:none; color:var(--ink-2); font-weight:500; white-space:nowrap}
+.dlg-tabs button[aria-selected="true"]{color:var(--ink); border-bottom-color:var(--accent); font-weight:700}
+.dlg-tabs button:hover{color:var(--ink)}
+.tab-n{font-size:11px; color:var(--ink-3)}
+.dlg-b[hidden]{display:none}
+#form-company > .form-err{margin:0; padding:0 18px 10px}
+
+/* ---- kind chip, notes indicator ---- */
+.chip.kind{background:var(--accent-soft); color:var(--accent); letter-spacing:0}
+.chip.kind.main{background:var(--surface-2); color:var(--ink-2)}
+.kind-t{font-size:11px}
+.notes-n{display:block; font-size:11px; color:var(--ink-3); margin-top:1px}
+
+/* ---- ES / 面接 editors ---- */
+.notes{list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:12px}
+.note{display:flex; flex-direction:column; gap:6px; padding:10px; border:1px solid var(--line); border-radius:var(--r); background:var(--surface-2)}
+.note-h{display:grid; grid-template-columns:minmax(0,1fr) 36px; gap:6px; align-items:center}
+.note-h.iv{grid-template-columns:10em minmax(0,1fr) 36px}
+.note-h .sed-b{min-height:36px}
+.note-text{width:100%; min-height:72px; resize:vertical; line-height:1.6}
+.note-f{display:flex; justify-content:flex-end; font-size:11.5px; color:var(--ink-3)}
+.note-l{font-size:12px; color:var(--ink-2); font-weight:500}
+.note-empty{padding:4px 0}
+
+/* ---- view switch ---- */
+.viewbar{display:flex; align-items:center; margin:0 0 10px}
+.tabs{display:inline-flex; border:1px solid var(--line); border-radius:var(--r); background:var(--surface); padding:2px}
+.tabs button{border:0; background:transparent; padding:5px 16px; border-radius:4px; font-weight:500; color:var(--ink-2); min-height:32px}
+.tabs button[aria-selected="true"]{background:var(--ink); color:var(--bg)}
+
+/* ---- header menu: all buttons visible on wide screens ---- */
+.menu-btn{display:none}
+.menu-items{display:contents}
+
+/* ---- ics panel ---- */
+.ics-opts{display:flex; flex-wrap:wrap; gap:10px 24px; margin-bottom:10px}
+.ics-opts fieldset{border:0; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:4px 14px; min-width:0}
+.ics-opts legend{font-size:12px; font-weight:700; color:var(--ink-2); padding:0; margin-bottom:4px; width:100%}
+.opt{display:inline-flex; align-items:center; gap:6px; min-height:36px; font-size:13px; cursor:pointer}
+.opt input{width:18px; height:18px; margin:0; accent-color:var(--accent)}
+.ics-help{margin:10px 0 0; padding-left:18px}
+.ics-help li{margin:2px 0}
+
+/* ---- calendar ---- */
+.cal{background:var(--surface); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--shadow); padding:12px}
+.cal-h{display:flex; align-items:center; gap:8px; margin-bottom:10px}
+.cal-title{margin:0 6px; font-size:17px; font-weight:700; min-width:7.5em; text-align:center; font-variant-numeric:tabular-nums}
+.cal-nav{min-width:36px; padding:4px 10px; font-size:18px; line-height:1}
+.cal-grid{display:flex; flex-direction:column; border:1px solid var(--rule); border-radius:4px; overflow:hidden}
+.cal-week{display:grid; grid-template-columns:repeat(7,minmax(0,1fr))}
+.cal-week + .cal-week{border-top:1px solid var(--rule)}
+.cal-wd{font-size:11.5px; font-weight:700; text-align:center; padding:4px 0; color:var(--ink-2); background:var(--surface-2)}
+.cal-wd.sun{color:var(--danger)} .cal-wd.sat{color:var(--accent)}
+.cal-day{position:relative; display:flex; flex-direction:column; align-items:stretch; gap:2px; min-width:0; min-height:92px; padding:4px; border:0; border-left:1px solid var(--rule); background:var(--surface); text-align:left; color:var(--ink); border-radius:0}
+.cal-day:first-child{border-left:0}
+.cal-day.sun,.cal-day.sat{background:color-mix(in srgb, var(--surface-2) 55%, var(--surface))}
+.cal-day.out{color:var(--ink-3)}
+.cal-day.out .cal-n{opacity:.6}
+.cal-day:hover{background:var(--surface-2)}
+.cal-day.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+.cal-n{font-size:12px; line-height:20px; width:22px; height:22px; text-align:center; border-radius:50%}
+.cal-day.today .cal-n{background:var(--accent); color:var(--accent-ink); font-weight:700}
+.cal-evs{display:flex; flex-direction:column; gap:2px; min-width:0}
+.cal-ev{display:block; font-size:10.5px; line-height:1.4; padding:0 4px; border-radius:3px; background:var(--mgb); color:var(--mgi); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.cal-ev.done{opacity:.55; text-decoration:line-through}
+.cal-more{font-size:10.5px; color:var(--ink-3); padding-left:4px}
+.cal-dots{display:none}
+.cal-list{margin-top:12px}
+.cal-list h3{font-size:13px; margin:0 0 6px; color:var(--ink-2)}
+.cal-items{list-style:none; margin:0; padding:0}
+.cal-item{display:flex; align-items:center; gap:8px; border-top:1px dashed var(--rule); padding:4px 0}
+.cal-item:first-child{border-top:0}
+.cal-open{flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:10px; background:none; border:0; padding:6px 2px; text-align:left; border-radius:4px; min-height:40px}
+.cal-open:hover{background:var(--surface-2)}
+.cal-time{flex:none; width:3.2em; font-size:12.5px; color:var(--ink-2)}
+.cal-what{display:flex; flex-direction:column; min-width:0}
+.cal-co{display:flex; flex-wrap:wrap; align-items:center; gap:2px 0}
+.cal-co b{overflow-wrap:anywhere}
+.cal-lbl{font-size:12.5px; color:var(--ink-2)}
+.cal-item.done .cal-lbl,.cal-item.done .cal-co b{text-decoration:line-through; color:var(--ink-3)}
+.cal-done{flex:none; min-height:36px}
+.cal-done[aria-pressed="true"]{color:var(--ok); border-color:color-mix(in srgb, var(--ok) 40%, var(--line))}
+.cal-none{padding:6px 0}
+
+@media (max-width: 720px){
+  .cal{padding:8px}
+  .cal-day{min-height:52px; align-items:center; padding:3px 1px}
+  .cal-evs{display:none}
+  .cal-dots{display:flex; flex-wrap:wrap; justify-content:center; gap:2px; max-width:100%}
+  .cal-dots i{width:6px; height:6px; border-radius:50%; background:var(--mgi)}
+  .cal-dots i.done{opacity:.35}
+  .cal-dots b{font-size:9px; font-weight:500; color:var(--ink-3); line-height:6px}
+  .cal-title{font-size:16px; min-width:0; flex:1 1 auto}
+}
+@media (max-width: 560px){
+  .menu-btn{display:inline-flex}
+  .menu-items{display:none}
+  .top-actions.open .menu-items{display:flex; flex-direction:column; gap:6px; width:100%; order:5}
+  .top-actions.open .menu-items .btn{width:100%; justify-content:flex-start}
+  .note-h.iv{grid-template-columns:minmax(0,1fr) 38px; grid-template-areas:"d del" "t t"}
+  .note-h.iv input[type=date]{grid-area:d}
+  .note-h.iv input:not([type]){grid-area:t}
+  .note-h.iv .sed-b{grid-area:del}
+  .note-h .sed-b{min-height:38px}
+  .tabs button{min-height:38px}
+  .dlg-tabs{padding:0 6px}
+  .dlg-tabs button{padding:6px 10px}
+  .ics-opts{display:block}
+  .ics-opts fieldset{margin-bottom:8px}
 }

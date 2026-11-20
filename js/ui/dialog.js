@@ -1,10 +1,14 @@
 /* Add / edit dialog: fields, per-company stages, events, icon, history. */
 import { $, esc } from "./html.js";
 import { iconHTML, squareImage } from "../icons.js";
-import { putIconBlob } from "../store.js";
+import { putIconBlob, getIconBlob } from "../store.js";
+import { createNotesEditor, notesFromDraft } from "./notes-editor.js";
+import { downloadBlob } from "./download.js";
+import { normalizeKind } from "../notes.js";
+import { buildICS, selectForExport } from "../ics.js";
 import { stepsHTML, revealCurrentSteps } from "./stepper.js";
 import { defineEditor, renderEditor, editorOp } from "./stage-editor.js";
-import { parseDate, fmtFull, toInputs, fromInputs } from "../dates.js";
+import { parseDate, fmtFull, toInputs, fromInputs, ymd } from "../dates.js";
 import { newEventId, eventsFromRows, MAX_EVENTS, MAX_EVENT_LABEL } from "../events.js";
 import {
   TERM_LABEL, isTerm, labelIn, colorAt, termColor, reachedFrom, cloneStages, checkStages, newId,
@@ -18,12 +22,44 @@ export function initDialog(app) {
   const byId = (id) => S.docs.find((c) => c.id === id);
   const editing = () => (S.editingId ? byId(S.editingId) : null);
 
+  /* ---------- tabs ---------- */
+  const TABS = ["basic", "events", "es", "iv", "hist"];
+  function showTab(name) {
+    for (const t of TABS) {
+      const on = t === name;
+      $(`tab-${t}`).setAttribute("aria-selected", String(on));
+      $(`tab-${t}`).tabIndex = on ? 0 : -1;
+      $(`pane-${t}`).hidden = !on;
+    }
+    const body = dlg.querySelector("form");
+    if (dlg.scrollTop > 0) dlg.scrollTop = 0; else if (body) body.scrollTop = 0;
+  }
+  for (const t of TABS) $(`tab-${t}`).addEventListener("click", () => showTab(t));
+  dlg.querySelector(".dlg-tabs").addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    const cur = TABS.findIndex((t) => $(`tab-${t}`).getAttribute("aria-selected") === "true");
+    const next = TABS[(cur + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length];
+    showTab(next); $(`tab-${next}`).focus(); e.preventDefault();
+  });
+  function updateTabCounts() {
+    const n = (id, v) => { $(id).textContent = v ? ` ${v}` : ""; };
+    n("tab-events-n", S.draftEvents.filter((r) => !r.done && (r.date || r.label)).length);
+    n("tab-es-n", S.draftES.length);
+    n("tab-iv-n", S.draftIV.length);
+  }
+  const esEd = createNotesEditor("es", { get: () => S.draftES, set: (a) => { S.draftES = a; }, changed: updateTabCounts });
+  const ivEd = createNotesEditor("iv", { get: () => S.draftIV, set: (a) => { S.draftIV = a; }, changed: updateTabCounts });
+  function refreshIvTitles() {
+    const labels = [...new Set([...S.draftStages.map((s) => String(s.label).trim()).filter(Boolean), "GD", "人事面接", "役員面接"])];
+    $("iv-title-suggest").innerHTML = labels.map((l) => `<option value="${esc(l)}"></option>`).join("");
+  }
+
   /* ---------- stages ---------- */
   defineEditor("cs", {
     box: "cs-editor", err: "cs-err",
     get: () => S.draftStages, set: (a) => { S.draftStages = a; },
     currentId: () => $("c-stage").value,
-    changed: () => updateVisuals(true),
+    changed: () => { updateVisuals(true); refreshIvTitles(); },
   });
   function rebuildStageSelect(value) {
     const sel = $("c-stage");
@@ -57,7 +93,6 @@ export function initDialog(app) {
   });
 
   /* ---------- events ---------- */
-  const rowEl = (id) => $("ev-list").querySelector(`li[data-ev="${CSS.escape(id)}"]`);
   function sortDraftEvents() {
     const key = (r) => (r.date ? fromInputs(r.date, r.time) || "9" : "9");
     S.draftEvents.sort((a, b) => key(a).localeCompare(key(b)));
@@ -82,6 +117,7 @@ export function initDialog(app) {
     const r = S.draftEvents.find((x) => x.id === li.dataset.ev); if (!r) return;
     r[f] = f === "done" ? e.target.checked : e.target.value;
     if (f === "done") li.classList.toggle("is-done", r.done);
+    updateTabCounts();
     $("ev-err").textContent = "";
   });
   /* Rows keep their place while editing (no jumping after a date is picked);
@@ -90,7 +126,7 @@ export function initDialog(app) {
     const b = e.target.closest("[data-evdel]"); if (!b) return;
     const i = S.draftEvents.findIndex((r) => r.id === b.dataset.evdel); if (i < 0) return;
     S.draftEvents.splice(i, 1);
-    renderEvents();
+    renderEvents(); updateTabCounts();
     const near = S.draftEvents[Math.min(i, S.draftEvents.length - 1)];
     ($(near ? `ev-del-${near.id}` : "btn-ev-add") || $("btn-ev-add")).focus();
   });
@@ -98,8 +134,18 @@ export function initDialog(app) {
     if (S.draftEvents.length >= MAX_EVENTS) { $("ev-err").textContent = `予定は${MAX_EVENTS}件までです。`; return; }
     const r = { id: newEventId(), date: "", time: "", label: "", done: false };
     S.draftEvents.push(r);
-    renderEvents();
+    renderEvents(); updateTabCounts();
     $(`ev-date-${r.id}`).focus();
+  });
+  $("btn-ev-ics").addEventListener("click", () => {
+    const c = editing();
+    const msg = $("ev-ics-msg");
+    if (!c) { msg.textContent = "先に保存してから書き出してください。"; return; }
+    const items = selectForExport([c], { range: "all" });
+    if (!items.length) { msg.textContent = "書き出せる未完了の予定がありません（保存済みの予定が対象です）。"; return; }
+    const ics = buildICS(items, { reminders: app.icsReminders() });
+    downloadBlob(new Blob([ics], { type: "text/calendar;charset=utf-8" }), `shukatsu-events-${ymd(new Date())}.ics`);
+    msg.textContent = `${items.length} 件の予定を書き出しました（保存済みの内容）。`;
   });
 
   /* ---------- icon ---------- */
@@ -150,7 +196,10 @@ export function initDialog(app) {
     $("dlg-icon").innerHTML = iconHTML(name, src, 48);
     $("icon-preview").innerHTML = iconHTML(name, src, 40);
     $("btn-icon-remove").hidden = !(S.icon.url || (!S.icon.removed && c && c.iconId));
+    const kind = normalizeKind($("c-kind").value);
+    $("dlg-kind").textContent = kind; $("dlg-kind").hidden = !$("c-name").value.trim();
   }
+  $("c-kind").addEventListener("input", () => updateVisuals());
   $("c-name").addEventListener("input", () => updateVisuals());
   $("c-stage").addEventListener("change", () => { $("cs-err").textContent = ""; updateVisuals(); });
   function updateUrlLink() {
@@ -160,28 +209,35 @@ export function initDialog(app) {
   $("c-url").addEventListener("input", updateUrlLink);
 
   /* ---------- open / close ---------- */
-  function openDialog(id) {
+  /** id: edit that company. from: prefill a new selection from another company. */
+  function openDialog(id, from = null) {
     const c = id ? byId(id) : null;
     S.editingId = c ? c.id : null;
     S.draftStages = cloneStages(c ? c.stages : S.template);
     S.draftEvents = (c ? c.events : []).map((e) => ({ id: e.id, ...toInputs(e.at), label: e.label, done: e.done }));
     sortDraftEvents();
-    $("dlg-title").textContent = c ? "企業を編集" : "企業を追加";
-    $("c-name").value = c ? c.name : "";
+    S.draftES = (c ? c.notes.es : []).map((e) => ({ ...e }));
+    S.draftIV = (c ? c.notes.interviews : []).map((e) => ({ ...e }));
+    const src = c || from;
+    $("dlg-title").textContent = c ? "企業を編集" : from ? "別の選考を追加" : "企業を追加";
+    $("c-name").value = src ? src.name : "";
+    $("c-kind").value = c ? c.kind : "";
     $("c-position").value = c ? c.position : "";
-    $("c-industry").value = c ? c.industry : "";
-    $("c-priority").value = String(c ? c.priority : 2);
+    $("c-industry").value = src ? src.industry : "";
+    $("c-priority").value = String(src ? src.priority : 2);
     const def = S.draftStages.find((s) => s.id === "entry") || S.draftStages[0];
     rebuildStageSelect(c ? c.stage : def.id);
-    $("c-url").value = c ? c.url : "";
+    $("c-url").value = src ? src.url : "";
     $("c-memo").value = c ? c.memo : "";
-    for (const k of ["form-err", "cs-err", "ev-err"]) $(k).textContent = "";
+    for (const k of ["form-err", "cs-err", "ev-err", "es-err", "iv-err", "ev-ics-msg"]) $(k).textContent = "";
+    $("sibling-wrap").hidden = !c;
+    esEd.render(); ivEd.render(); refreshIvTitles(); updateTabCounts(); showTab("basic");
     $("del-confirm").hidden = true;
     $("btn-delete").hidden = !c;
     setStageEditorOpen(false);
     renderEvents();
     const hist = c ? c.history.slice().sort((a, b) => String(b.at).localeCompare(String(a.at))) : [];
-    $("hist-wrap").hidden = !hist.length;
+    $("hist-empty").hidden = !!hist.length;
     $("hist").innerHTML = hist.map((h) => {
       const t = parseDate(h.at);
       const k = c.stages.findIndex((s) => s.id === h.stage);
@@ -192,9 +248,24 @@ export function initDialog(app) {
     $("icon-hint").textContent = ICON_HINT;
     updateVisuals();
     updateUrlLink();
-    if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
-    if (!matchMedia("(pointer: coarse)").matches) setTimeout(() => $("c-name").focus(), 0);
+    if (!dlg.open) { if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", ""); }
+    const focusId = from ? "c-kind" : "c-name";
+    if (from || !matchMedia("(pointer: coarse)").matches) setTimeout(() => $(focusId).focus(), 0);
   }
+  /* copy the source icon so both selections can change it independently */
+  $("btn-sibling").addEventListener("click", async () => {
+    const c = editing(); if (!c) return;
+    let blob = null;
+    if (c.iconId) blob = await getIconBlob(app.store(), c.iconId).catch(() => null);
+    openDialog(null, c);
+    if (blob) {
+      S.icon.blob = blob; S.icon.url = URL.createObjectURL(blob);
+      $("icon-hint").textContent = "元の企業のアイコンを引き継ぎます。";
+      updateVisuals();
+    }
+    $("form-err").textContent = "";
+    $("ev-ics-msg").textContent = "";
+  });
   function closeDialog() { if (dlg.open) dlg.close(); S.editingId = null; resetIcon(); }
   $("btn-cancel").addEventListener("click", closeDialog);
   $("btn-dlg-close").addEventListener("click", closeDialog);
@@ -205,26 +276,33 @@ export function initDialog(app) {
   $("form-company").addEventListener("submit", async (e) => {
     e.preventDefault();
     if (S.busy) return;
-    const fail = (msg, focusId) => { $("form-err").textContent = msg; if (focusId && $(focusId)) $(focusId).focus(); };
+    const fail = (msg, focusId, tab) => {
+      if (tab) showTab(tab);
+      $("form-err").textContent = msg;
+      if (focusId && $(focusId)) $(focusId).focus();
+    };
     const name = $("c-name").value.trim();
-    if (!name) return fail("社名を入力してください。", "c-name");
+    if (!name) return fail("社名を入力してください。", "c-name", "basic");
     const url = $("c-url").value.trim();
-    if (url && !/^https?:\/\//i.test(url)) return fail("マイページURLは http:// または https:// から始めてください。", "c-url");
+    if (url && !/^https?:\/\/\S+$/i.test(url)) return fail("マイページURLは http:// または https:// から始めてください。", "c-url", "basic");
     const chk = checkStages(S.draftStages);
-    if (chk.error) { setStageEditorOpen(true); $("cs-err").textContent = chk.error; return fail("選考段階の編集欄を確認してください。"); }
+    if (chk.error) { showTab("basic"); setStageEditorOpen(true); $("cs-err").textContent = chk.error; return fail("選考段階の編集欄を確認してください。"); }
     const ev = eventsFromRows(S.draftEvents, fromInputs);
-    if (ev.error) { $("ev-err").textContent = ev.error; return fail("「予定」の欄を確認してください。", ev.id ? `ev-date-${ev.id}` : null); }
+    if (ev.error) { $("ev-err").textContent = ev.error; return fail("「予定」の欄を確認してください。", ev.id ? `ev-date-${ev.id}` : null, "events"); }
+    const badIv = S.draftIV.find((r) => r.date && !/^\d{4}-\d{2}-\d{2}$/.test(r.date));
+    if (badIv) { $("iv-err").textContent = "日付が正しくない面接の記録があります。"; return fail("「面接」の欄を確認してください。", `iv-d-${badIv.id}`, "iv"); }
     const stages = chk.stages;
     const stage = $("c-stage").value;
     if (!isTerm(stage) && !stages.some((s) => s.id === stage)) return fail("選考段階を選び直してください。");
     const now = new Date().toISOString();
     const old = editing();
+    const notes = notesFromDraft(S.draftES, S.draftIV, old && old.notes, now);
     const history = old ? old.history.slice() : [];
     if (!old || old.stage !== stage) history.push({ stage, at: now, label: labelIn(stages, stage) });
     const rec = {
       id: old ? old.id : newId("c"),
-      name, position: $("c-position").value.trim(), industry: $("c-industry").value.trim(),
-      stages, stage, priority: Number($("c-priority").value) || 2,
+      name, kind: normalizeKind($("c-kind").value), position: $("c-position").value.trim(), industry: $("c-industry").value.trim(),
+      stages, stage, notes, priority: Number($("c-priority").value) || 2,
       events: ev.events,
       url, memo: $("c-memo").value, history, updatedAt: now, example: old ? old.example : false,
       iconId: old && !S.icon.removed ? old.iconId : "",

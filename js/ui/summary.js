@@ -25,7 +25,7 @@ export function renderStats(all) {
 function itemHTML({ company: c, event: e, date: d }, iconUrl, now, doneBtn) {
   return `<li class="up-row"><button type="button" class="up-item" data-act="edit" data-id="${esc(c.id)}">
       <span class="up-date">${esc(fmtDate(d))}</span>
-      <span class="up-what" style="display:flex;align-items:center;gap:7px">${iconHTML(c.name, iconUrl(c.iconId), 20)}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis"><b>${esc(c.name)}</b><span>${esc(e.label || stageLabel(c))}</span></span></span>
+      <span class="up-what" style="display:flex;align-items:center;gap:7px">${iconHTML(c.name, iconUrl(c.iconId), 20)}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis"><b>${esc(c.name)}</b>${c.kind !== "本選考" ? `<span class="kind-t">${esc(c.kind)}</span>` : ""}<span>${esc(e.label || stageLabel(c))}</span></span></span>
       ${dueBadgeHTML(d, now)}</button>${doneBtn ? `<button type="button" class="qa up-done" data-act="ev-done" data-id="${esc(c.id)}" data-ev="${esc(e.id)}" aria-label="${esc(c.name)}の${esc(e.label || "予定")}を完了にする">完了</button>` : ""}</li>`;
 }
 

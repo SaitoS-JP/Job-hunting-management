@@ -24,6 +24,13 @@ function nextHTML(c, now) {
   return `<div class="next"><span class="when">${esc(fmtDate(d))}${more}</span>${n.event.label ? `<span class="lbl">${esc(n.event.label)}</span>` : ""}${isTerm(c.stage) ? "" : dueBadgeHTML(d, now)}</div>`;
 }
 const sampleChip = (c) => (c.example ? `<span class="chip">サンプル</span>` : "");
+/** Small chip with the selection kind (本選考 / インターン …). */
+export const kindChip = (c) => `<span class="chip kind${c.kind === "本選考" ? " main" : ""}">${esc(c.kind)}</span>`;
+function notesHint(c) {
+  const es = c.notes.es.length, iv = c.notes.interviews.length;
+  if (!es && !iv) return "";
+  return `<span class="notes-n">${[es && `ES ${es}`, iv && `面接 ${iv}`].filter(Boolean).join("・")}</span>`;
+}
 function progHTML(c) {
   const term = isTerm(c.stage);
   const r = reached(c);
@@ -60,8 +67,8 @@ export function listHTML(list, { sort, iconUrl, now = new Date() }) {
     const u = parseDate(c.updatedAt);
     const id = esc(c.id);
     return `<div class="lrow" role="row">
-      <div class="who" role="cell"><div class="who-in">${iconHTML(c.name, iconUrl(c.iconId), 28)}<div><button type="button" data-act="edit" data-id="${id}">${esc(c.name || "（社名未入力）")}</button>${sampleChip(c)}
-        <span class="pos">${esc(c.position)}${c.industry ? ` <span class="ind">／${esc(c.industry)}</span>` : ""}</span></div></div></div>
+      <div class="who" role="cell"><div class="who-in">${iconHTML(c.name, iconUrl(c.iconId), 28)}<div><button type="button" data-act="edit" data-id="${id}">${esc(c.name || "（社名未入力）")}</button>${kindChip(c)}${sampleChip(c)}
+        <span class="pos">${esc(c.position)}${c.industry ? ` <span class="ind">／${esc(c.industry)}</span>` : ""}</span>${notesHint(c)}</div></div></div>
       <div role="cell" class="prog-cell" style="min-width:0">${progHTML(c)}</div>
       <div role="cell" class="pricell">${priHTML(c.priority)}</div>
       <div role="cell">${nextHTML(c, now)}</div>
