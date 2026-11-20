@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>就活ボード</title>
+<meta name="description" content="応募した企業・職種・選考段階・次の予定をひと目で管理できる就活トラッカー。データはこの端末の中だけに保存されます。">
+<meta name="theme-color" content="#f3f4f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15191d" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="就活ボード">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="./icons/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./app.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>就活ボード</h1>
+      <div class="sub" id="today-line"></div>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="btn ghost" id="btn-del-samples" hidden>サンプルを削除</button>
+      <button type="button" class="btn" id="btn-backup" aria-expanded="false" aria-controls="backup-panel">バックアップ</button>
+      <button type="button" class="btn primary" id="btn-add">＋ 企業を追加</button>
+    </div>
+  </header>
+
+  <div class="ios-hint" id="ios-hint" role="note" hidden>
+    <span class="grow">共有ボタン → ホーム画面に追加 でアプリとして使えます</span>
+    <button type="button" class="btn small ghost" id="btn-ios-hint-close">閉じる</button>
+  </div>
+
+  <p class="local-note" id="local-note">データはこの端末のブラウザ内だけに保存され、どこにも送信されません。機種変更やブラウザのデータ削除に備えて、ときどき「バックアップ」から書き出してください。</p>
+
+  <section class="panel" id="backup-panel" aria-labelledby="backup-h" hidden>
+    <h2 id="backup-h">バックアップ</h2>
+    <p>書き出したファイル（JSON）には全企業の記録とアイコン画像が含まれます。別の端末やブラウザで「読み込み」すると復元できます。</p>
+    <div class="row">
+      <button type="button" class="btn" id="btn-export">書き出し</button>
+      <span class="btn file-btn">読み込み<input type="file" id="backup-file" accept="application/json,.json" aria-label="バックアップファイルを読み込む"></span>
+      <span class="hint" id="backup-msg" role="status"></span>
+    </div>
+    <div id="import-confirm" hidden>
+      <p class="import-summary" id="import-summary"></p>
+      <div class="row">
+        <button type="button" class="btn primary" id="btn-import-merge">追加する</button>
+        <button type="button" class="btn danger" id="btn-import-replace">置き換える</button>
+        <button type="button" class="btn ghost" id="btn-import-cancel">キャンセル</button>
+      </div>
+      <p class="hint" style="margin-top:8px">「追加」は今のデータを残したまま加えます。「置き換え」は今のデータをすべて消してから読み込みます（元に戻せません）。</p>
+    </div>
+  </section>
+
+  <div class="notice warn" id="notice-db" role="status" hidden>
+    <span class="grow">この端末に保存できません（プライベートブラウズ等）。閉じるとデータは消えます。必要なら「バックアップ」から書き出してください。</span>
+  </div>
+  <div class="notice err" id="notice-err" role="alert" hidden>
+    <span class="grow" id="notice-err-text"></span>
+    <button type="button" class="btn small ghost" id="btn-err-close">閉じる</button>
+  </div>
+  <div class="notice warn" id="notice-samples" role="group" aria-label="サンプルの削除確認" hidden>
+    <span class="grow" id="notice-samples-text"></span>
+    <button type="button" class="btn small danger" id="btn-samples-yes">削除する</button>
+    <button type="button" class="btn small" id="btn-samples-no">キャンセル</button>
+  </div>
+
+  <section class="summary" aria-label="サマリー">
+    <div class="stats" id="stats"></div>
+    <div class="upcoming">
+      <h2>直近の予定</h2>
+      <ul class="up-list" id="upcoming"></ul>
+    </div>
+  </section>
+
+  <div class="toolbar" role="search" aria-label="絞り込みと並び順">
+    <div class="search">
+      <label for="q" class="sr">社名・職種で検索</label>
+      <input type="search" class="input" id="q" placeholder="社名・職種で検索" autocomplete="off">
+    </div>
+    <div class="field-inline">
+      <label for="f-priority" class="sr">志望度</label>
+      <select class="select" id="f-priority">
+        <option value="all">★ 全部</option>
+        <option value="1">★★★ 第一</option>
+        <option value="2">★★ 第二</option>
+        <option value="3">★ 第三</option>
+      </select>
+    </div>
+    <div class="field-inline">
+      <label for="f-scope" class="sr">対象</label>
+      <select class="select" id="f-scope">
+        <option value="all">終了も表示</option>
+        <option value="active">選考中のみ</option>
+      </select>
+    </div>
+    <div class="field-inline">
+      <label for="f-sort">並び順</label>
+      <select class="select" id="f-sort">
+        <option value="next">次の予定日</option>
+        <option value="priority">志望度</option>
+        <option value="stage">段階</option>
+        <option value="updated">更新日</option>
+      </select>
+    </div>
+    <span class="spacer"></span>
+    <span class="count-line num" id="count-line" aria-live="polite"></span>
+  </div>
+
+  <main id="main"></main>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlg-title">
+  <form id="form-company" novalidate>
+    <div class="dlg-h">
+      <div class="ttl"><span id="dlg-icon"></span><h2 id="dlg-title">企業を追加</h2></div>
+      <button type="button" class="icon-x" id="btn-dlg-close" aria-label="閉じる">×</button>
+    </div>
+    <div class="dlg-b">
+      <div class="fld">
+        <label for="c-name">社名<span class="req" aria-hidden="true">*</span></label>
+        <input class="input" id="c-name" name="name" required maxlength="80" autocomplete="off">
+      </div>
+      <div class="fld">
+        <label for="c-position">職種・コース</label>
+        <input class="input" id="c-position" name="position" maxlength="80" autocomplete="off" placeholder="例：総合職 / エンジニア職">
+      </div>
+      <div class="fld">
+        <label for="c-industry">業界</label>
+        <input class="input" id="c-industry" name="industry" maxlength="40" autocomplete="off" placeholder="例：IT・通信">
+      </div>
+      <div class="fld">
+        <label for="c-priority">志望度</label>
+        <select class="select" id="c-priority" name="priority">
+          <option value="1">★★★ 第一志望群</option>
+          <option value="2">★★ 第二志望群</option>
+          <option value="3">★ 第三志望群</option>
+        </select>
+      </div>
+      <div class="fld full">
+        <label for="c-stage">選考段階</label>
+        <select class="select" id="c-stage" name="stage"></select>
+        <div class="steps-scroll" id="dlg-steps"></div>
+      </div>
+      <div class="fld full" id="icon-wrap">
+        <span class="section-h" id="icon-h">アイコン</span>
+        <div class="icon-edit" role="group" aria-labelledby="icon-h">
+          <span id="icon-preview"></span>
+          <span class="btn small file-btn">画像を選ぶ<input type="file" id="c-icon-file" accept="image/*" aria-label="アイコン画像を選ぶ"></span>
+          <button type="button" class="btn small ghost" id="btn-icon-remove">画像を外す</button>
+          <span class="hint" id="icon-hint"></span>
+        </div>
+      </div>
+      <div class="fld">
+        <label for="c-next-date">次の予定（日付・時刻）</label>
+        <div class="dt-pair">
+          <input type="date" class="input" id="c-next-date" name="nextDate" aria-label="次の予定の日付">
+          <input type="time" class="input" id="c-next-time" name="nextTime" aria-label="次の予定の時刻（任意）">
+        </div>
+      </div>
+      <div class="fld">
+        <label for="c-next-label">予定の内容</label>
+        <input class="input" id="c-next-label" name="nextLabel" maxlength="40" autocomplete="off" placeholder="例：一次面接 / ES締切" list="label-suggest">
+        <datalist id="label-suggest">
+          <option value="ES締切"></option><option value="説明会"></option><option value="Webテスト締切"></option>
+          <option value="GD"></option><option value="一次面接"></option><option value="二次面接"></option>
+          <option value="最終面接"></option><option value="内定承諾期限"></option>
+        </datalist>
+      </div>
+      <div class="fld full">
+        <label for="c-url">マイページURL</label>
+        <input type="url" class="input" id="c-url" name="url" autocomplete="off" placeholder="https://">
+        <a id="c-url-open" class="hint" href="#" target="_blank" rel="noopener noreferrer" hidden>マイページを開く ↗</a>
+      </div>
+      <div class="fld full">
+        <label for="c-memo">メモ</label>
+        <textarea class="input" id="c-memo" name="memo" maxlength="4000" placeholder="選考の感触、聞かれたこと、持ち物など"></textarea>
+      </div>
+      <div class="fld full" id="hist-wrap" hidden>
+        <span class="section-h">選考の履歴</span>
+        <ol class="timeline" id="hist"></ol>
+      </div>
+      <p class="form-err" id="form-err" role="alert"></p>
+    </div>
+    <div class="dlg-f">
+      <div class="confirm-row" id="del-confirm" hidden>
+        <span class="grow" style="flex:1 1 200px">この企業を削除します。元に戻せません。</span>
+        <button type="button" class="btn small danger" id="btn-delete-confirm">削除する</button>
+        <button type="button" class="btn small" id="btn-delete-cancel">やめる</button>
+      </div>
+      <button type="button" class="btn ghost" id="btn-delete" hidden>削除</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="btn-cancel">キャンセル</button>
+      <button type="submit" class="btn primary" id="btn-save">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="./app.js"></script>
+</body>
+</html>
