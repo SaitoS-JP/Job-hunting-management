@@ -3,12 +3,15 @@ import { withEventState } from "./events.js";
 import { matchesQuery, KINDS } from "./notes.js";
 import { addMonths, localYmd, parseYmd } from "./calendar.js";
 import { buildICS, selectForExport } from "./ics.js";
+import { diffExport, planExport, cleanSnapshot } from "./ics-sync.js";
+import { compareSelection } from "./compare.js";
+import { compareHTML } from "./ui/compare.js";
 import { calendarHTML, todayState } from "./ui/calendar.js";
 import { downloadBlob } from "./ui/download.js";
 import { $, esc } from "./ui/html.js";
 import { openStore, createMemoryStore } from "./store.js";
-import { DEFAULT_STAGES, cloneStages, cleanStages, normalize, isTerm, isActive, colorAt, withStage, nextStageId, prevStageId, restoreStageId } from "./model.js";
-import { p2, WD, ymd, fmtFull } from "./dates.js";
+import { DEFAULT_STAGES, cloneStages, cleanStages, normalize, isTerm, isActive, isOffer, colorAt, withStage, nextStageId, prevStageId, restoreStageId } from "./model.js";
+import { p2, WD, ymd, fmtFull, fmtDate } from "./dates.js";
 import { backupReminder } from "./backup.js";
 import { buildSamples } from "./samples.js";
 import { IconCache, installIconFallback } from "./icons.js";
@@ -19,7 +22,7 @@ import { installEditorEvents } from "./ui/stage-editor.js";
 import { initDialog } from "./ui/dialog.js";
 import { initTemplatePanel, initBackupPanel } from "./ui/panels.js";
 
-const LS = { sort: "shukatsu.sort", iosHint: "shukatsu.iosHintDismissed", view: "shukatsu.view", backupSnooze: "shukatsu.backupSnoozeUntil", obDismissed: "shukatsu.onboardDismissed", obDoneSeen: "shukatsu.onboardDoneSeen" };
+const LS = { sort: "shukatsu.sort", iosHint: "shukatsu.iosHintDismissed", view: "shukatsu.view", backupSnooze: "shukatsu.backupSnoozeUntil", obDismissed: "shukatsu.onboardDismissed", icsDismiss: "shukatsu.icsHintDismissed", obDoneSeen: "shukatsu.onboardDoneSeen" };
 import { renderOnboarding } from "./ui/onboarding-card.js";
 import { createTour } from "./ui/tour.js";
 import { latestOwnCompany } from "./onboarding.js";
@@ -38,8 +41,13 @@ const S = {
   pendingImport: null,
 };
 { const v = lsGet(LS.sort); if (["next", "priority", "stage", "updated"].includes(v)) S.sort = v; }
-if (location.hash === "#calendar") S.view = "calendar";
-else if (location.hash !== "#list" && lsGet(LS.view) === "calendar") S.view = "calendar";
+const VIEWS = { list: "#list", calendar: "#calendar", compare: "#compare" };
+const VIEW_TAB = { list: "view-list", calendar: "view-cal", compare: "view-cmp" };
+const viewFromHash = () => Object.keys(VIEWS).find((v) => VIEWS[v] === location.hash) || null;
+S.view = viewFromHash() || (VIEWS[lsGet(LS.view)] ? lsGet(LS.view) : "list");
+S.icsExport = cleanSnapshot(null);
+S.compareIds = null; // null = default selection
+S.cmpPicker = false;
 
 let store = createMemoryStore();
 const icons = new IconCache();
@@ -64,6 +72,9 @@ async function reload() {
     S.template = cleanStages(t && t.stages) || cloneStages(DEFAULT_STAGES);
     S.docs = (await store.all()).map((r) => normalize(r, r.id));
     S.lastBackupAt = (await store.getSetting("lastBackupAt").catch(() => "")) || "";
+    S.icsExport = cleanSnapshot(await store.getSetting("icsExport").catch(() => null));
+    const ids = await store.getSetting("compareIds").catch(() => null);
+    S.compareIds = Array.isArray(ids) ? ids.filter((x) => typeof x === "string").slice(0, 50) : null;
     S.loaded = true;
     await icons.sync(store, S.docs.map((c) => c.iconId));
     render();
@@ -128,17 +139,23 @@ function render() {
   if (!samples) $("notice-samples").hidden = true;
   $("f-sort").value = S.sort;
   renderKindFilter();
-  const cal = S.view === "calendar";
-  $("view-list").setAttribute("aria-selected", String(!cal)); $("view-list").tabIndex = cal ? -1 : 0;
-  $("view-cal").setAttribute("aria-selected", String(cal)); $("view-cal").tabIndex = cal ? 0 : -1;
-  $("main").setAttribute("aria-labelledby", cal ? "view-cal" : "view-list");
+  const cal = S.view === "calendar", cmp = S.view === "compare";
+  for (const [v, id] of Object.entries(VIEW_TAB)) { $(id).setAttribute("aria-selected", String(S.view === v)); $(id).tabIndex = S.view === v ? 0 : -1; }
+  $("main").setAttribute("aria-labelledby", VIEW_TAB[S.view]);
   $("sort-wrap").hidden = cal;
+  document.querySelector(".toolbar").hidden = cmp; // the comparison has its own picker
   const now = new Date();
   renderBackupReminder(now);
   renderFirstRun();
+  renderIcsHint(now);
   renderStats(S.docs);
   renderUpcoming(S.docs, iconUrl, now);
   const main = $("main");
+  if (cmp) {
+    const selectedIds = compareSelection(S.docs, S.compareIds, isOffer);
+    main.innerHTML = compareHTML(S.docs, { selectedIds, pickerOpen: S.cmpPicker }, { iconUrl });
+    return;
+  }
   // The calendar always opens, even with no companies yet (data is per device,
   // so a PC can be empty while the phone has data).
   if (cal) {
@@ -214,6 +231,13 @@ document.addEventListener("click", (e) => {
   else if (act === "samples") { b.disabled = true; insertSamples(); }
   else if (act === "cal-day") { S.cal.sel = b.dataset.day; const d = parseYmd(b.dataset.day); if (d) { S.cal.y = d.getFullYear(); S.cal.m = d.getMonth(); } render(); focusCal(`cal-${b.dataset.day}`); }
   else if (act === "cal-prev" || act === "cal-next") { moveMonth(act === "cal-prev" ? -1 : 1); focusCal(act); }
+  else if (act === "cmp-picker" || act === "cmp-picker-open") { S.cmpPicker = act === "cmp-picker-open" ? true : !S.cmpPicker; render(); const f = S.cmpPicker && $("cmp-picker").querySelector("button"); (f || $("btn-cmp-pick")).focus(); }
+  else if (act === "cmp-toggle") {
+    const cur = compareSelection(S.docs, S.compareIds, isOffer);
+    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+    saveCompareIds(next).then(() => { const el = $("cmp-picker").querySelector(`[data-id="${CSS.escape(id)}"]`); if (el) el.focus(); });
+  }
+  else if (act === "cmp-open") openDialog(id, null, { tab: "cond" });
   else if (act === "cal-today") { S.cal = todayState(); render(); focusCal("cal-today"); }
   else if (!c) return;
   else if (act === "advance") changeStage(c, nextStageId(c));
@@ -236,20 +260,30 @@ $("btn-add").addEventListener("click", () => openDialog(null));
 /* ---------- views ---------- */
 function setView(v) {
   S.view = v; lsSet(LS.view, v);
-  try { history.replaceState(null, "", v === "calendar" ? "#calendar" : "#list"); } catch (e) {}
+  try { history.replaceState(null, "", VIEWS[v]); } catch (e) {}
   render();
 }
 $("view-list").addEventListener("click", () => setView("list"));
 $("view-cal").addEventListener("click", () => setView("calendar"));
+$("view-cmp").addEventListener("click", () => setView("compare"));
 document.querySelector(".viewbar .tabs").addEventListener("keydown", (e) => {
   if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-  setView(S.view === "calendar" ? "list" : "calendar");
-  $(S.view === "calendar" ? "view-cal" : "view-list").focus();
+  const order = Object.keys(VIEWS);
+  const i = order.indexOf(S.view);
+  const v = order[(i + (e.key === "ArrowRight" ? 1 : order.length - 1)) % order.length];
+  setView(v); $(VIEW_TAB[v]).focus();
 });
 window.addEventListener("hashchange", () => {
-  const v = location.hash === "#calendar" ? "calendar" : "list";
+  const v = viewFromHash() || "list";
   if (v !== S.view) { S.view = v; lsSet(LS.view, v); render(); }
 });
+
+/* ---------- 比較 ---------- */
+async function saveCompareIds(ids) {
+  S.compareIds = ids;
+  render();
+  try { await serial(() => store.putSetting("compareIds", ids)); } catch (e) { showErr(errText(e)); }
+}
 function moveMonth(delta) {
   const nm = addMonths(S.cal, delta);
   const now = new Date();
@@ -293,21 +327,82 @@ for (const id of ["btn-ics", "btn-backup", "btn-tpl", "btn-onboard", "btn-tour",
 function icsReminders() {
   return ["week", "d3", "d1", "morning"].filter((k) => $(`ics-rem-${k}`).checked);
 }
-$("btn-ics").addEventListener("click", () => {
-  const p = $("ics-panel"); p.hidden = !p.hidden;
-  $("btn-ics").setAttribute("aria-expanded", String(!p.hidden));
+function openIcsPanel(open = $("ics-panel").hidden) {
+  const p = $("ics-panel"); p.hidden = !open;
+  $("btn-ics").setAttribute("aria-expanded", String(open));
   $("ics-msg").textContent = "";
-  if (!p.hidden) { p.scrollIntoView({ block: "nearest" }); $("btn-ics-export").focus(); }
-});
+  if (open) { renderIcsDiff(); p.scrollIntoView({ block: "nearest" }); $(S.icsExport.at ? "btn-ics-new" : "btn-ics-export").focus(); }
+}
+$("btn-ics").addEventListener("click", () => openIcsPanel());
 $("btn-ics-close").addEventListener("click", () => { $("ics-panel").hidden = true; $("btn-ics").setAttribute("aria-expanded", "false"); });
+/* .ics export with a record of what was exported (see ics-sync.js) */
+function exportIcs(items, mode, message) {
+  const plan = planExport(items, S.icsExport, { mode });
+  const ics = buildICS(items, { reminders: icsReminders(), seq: plan.seq });
+  downloadBlob(new Blob([ics], { type: "text/calendar;charset=utf-8" }), `shukatsu-events-${ymd(new Date())}.ics`);
+  saveIcsSnapshot(plan.snapshot);
+  $("ics-msg").textContent = message;
+}
+function saveIcsSnapshot(snap) {
+  S.icsExport = cleanSnapshot(snap);
+  serial(() => store.putSetting("icsExport", S.icsExport)).catch(() => {});
+  render();
+}
+app.saveIcsSnapshot = saveIcsSnapshot;
 $("btn-ics-export").addEventListener("click", () => {
   const range = $("ics-range-all").checked ? "all" : "future";
   const items = selectForExport(S.docs, { range });
   if (!items.length) { $("ics-msg").textContent = "書き出せる未完了の予定がありません。"; return; }
-  const ics = buildICS(items, { reminders: icsReminders() });
-  downloadBlob(new Blob([ics], { type: "text/calendar;charset=utf-8" }), `shukatsu-events-${ymd(new Date())}.ics`);
-  $("ics-msg").textContent = `${items.length} 件の予定を書き出しました。`;
+  exportIcs(items, "full", `${items.length} 件の予定を書き出しました。前に取り込んだものがあるときは、専用カレンダーを作り直してから取り込んでください。`);
 });
+$("btn-ics-new").addEventListener("click", () => {
+  const d = diffExport(S.docs, S.icsExport);
+  const items = d.added.map(({ company, event }) => ({ company, event }));
+  if (!items.length) { $("ics-msg").textContent = "新しい予定はありません。"; return; }
+  exportIcs(items, "merge", `新しい予定 ${items.length} 件を書き出しました。前回と同じカレンダーに取り込めば、重複しません。`);
+});
+const fmtAt = (iso) => { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? fmtDate(d) : "—"; };
+function diffList(title, list, line) {
+  if (!list.length) return "";
+  return `<details class="ics-dl"><summary>${title}（${list.length}件）</summary><ul>${list.map((x) => `<li>${line(x)}</li>`).join("")}</ul></details>`;
+}
+function renderIcsDiff() {
+  const box = $("ics-diff");
+  const d = diffExport(S.docs, S.icsExport);
+  if (!d.exported) {
+    box.innerHTML = `<p class="ics-sum">まだ書き出していません。はじめは「すべて書き出す」を、専用のカレンダーに取り込むのがおすすめです（下の「取り込み方」）。</p>`;
+    $("btn-ics-new").hidden = true;
+    return;
+  }
+  $("btn-ics-new").hidden = false;
+  const minor = d.changed.filter((x) => !x.major).length;
+  const parts = [`新しい予定 ${d.added.length}件`, `変更 ${d.changed.length - minor}件`, `なくなった予定 ${d.removed.length}件`];
+  const ev = (x) => `${esc(fmtAt(x.fp.at))}　${esc(x.fp.company)}｜${esc(x.fp.label)}`;
+  const changedLine = (x) => x.major
+    ? `${esc(x.fp.company)}：${esc(fmtAt(x.before.at))} ${esc(x.before.label)} → <b>${esc(fmtAt(x.fp.at))} ${esc(x.fp.label)}</b>`
+    : `${ev(x)}（説明欄のみ：選考段階など）`;
+  const advice = d.notable
+    ? `<p class="ics-adv">取り込み済みの予定は自動では変わりません。日時の変更やなくなった予定を反映するには、専用カレンダーを作り直して「すべて書き出す」を取り込んでください。</p>`
+    : d.added.length ? `<p class="ics-adv ok">追加だけなので「新しい予定だけ書き出す」で大丈夫です（重複しません）。</p>` : `<p class="ics-adv ok">カレンダーに取り込んだ内容と同じです。</p>`;
+  box.innerHTML = `<p class="ics-sum">前回の書き出し（${esc(fmtFull(new Date(S.icsExport.at)))}）以降：${parts.join("・")}${minor ? `<span class="hint">（ほかに説明欄だけの変更 ${minor}件）</span>` : ""}</p>
+    ${diffList("新しい予定", d.added, ev)}
+    ${diffList("変更", d.changed, changedLine)}
+    ${diffList("なくなった予定（削除・完了・不合格/辞退）", d.removed, (x) => `${esc(fmtAt(x.before.at))}　${esc(x.before.company)}｜${esc(x.before.label)}`)}
+    ${advice}`;
+}
+/* small line on the main screen when the calendar copy is out of date */
+function renderIcsHint(now) {
+  const el = $("notice-ics");
+  if (!S.loaded || !S.icsExport.at || OB.visible) { el.hidden = true; return; }
+  const d = diffExport(S.docs, S.icsExport, now);
+  const sig = [...d.changed.filter((x) => x.major).map((x) => x.uid + x.fp.k), ...d.removed.map((x) => x.uid)].sort().join("|");
+  el.hidden = !d.notable || lsGet(LS.icsDismiss) === sig;
+  el.dataset.sig = sig;
+  if (!el.hidden) $("notice-ics-text").textContent = `カレンダーに取り込んだ予定と違いがあります（${d.notable}件）`;
+  if (!$("ics-panel").hidden) renderIcsDiff();
+}
+$("btn-ics-check").addEventListener("click", () => openIcsPanel(true));
+$("btn-ics-dismiss").addEventListener("click", () => { lsSet(LS.icsDismiss, $("notice-ics").dataset.sig || ""); $("notice-ics").hidden = true; });
 $("f-kind").addEventListener("change", (e) => { S.kind = e.target.value; render(); });
 let qt;
 $("q").addEventListener("input", (e) => { clearTimeout(qt); qt = setTimeout(() => { S.q = e.target.value; render(); }, 120); });
@@ -379,7 +474,8 @@ $("help-panel").addEventListener("click", (e) => {
   if (k === "onboard") openChecklist();
   else if (k === "tour") tour.start();
   else if (k === "backup") { if ($("backup-panel").hidden) $("btn-backup").click(); $("backup-panel").scrollIntoView({ block: "nearest" }); }
-  else if (k === "ics") { if ($("ics-panel").hidden) $("btn-ics").click(); }
+  else if (k === "ics") openIcsPanel(true);
+  else if (k === "compare") { toggleHelp(false); setView("compare"); $("view-cmp").focus(); }
   else if (k === "tpl") { if ($("tpl-panel").hidden) $("btn-tpl").click(); }
 });
 

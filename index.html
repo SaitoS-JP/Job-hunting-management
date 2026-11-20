@@ -103,6 +103,16 @@
       <p class="row"><button type="button" class="btn small" data-help="ics">カレンダーに書き出しを開く</button></p>
     </details>
     <details>
+      <summary>カレンダーに取り込んだ予定を変えたら？</summary>
+      <p>取り込んだ予定は自動では変わりません。「カレンダーに書き出し」を開くと、前回の書き出しから増えた・変わった・なくなった予定が分かります。追加だけなら「新しい予定だけ書き出す」、日時の変更などがあれば専用カレンダーを作り直して「すべて書き出す」を取り込みます。</p>
+      <p class="row"><button type="button" class="btn small" data-help="ics">カレンダーに書き出しを開く</button></p>
+    </details>
+    <details>
+      <summary>内定した企業を比べるには？</summary>
+      <p>企業の編集画面の「条件」タブに勤務地・初任給・年間休日・自分の評価などを入れて、画面上の「比較」を開きます。比べる企業は「比べる企業を選ぶ」で変えられます。</p>
+      <p class="row"><button type="button" class="btn small" data-help="compare">比較を開く</button></p>
+    </details>
+    <details>
       <summary>「内定」の印とは？</summary>
       <p>選考段階のうち「内定」にあたる段階につける印です。その段階（と、その後の内定承諾などの段階）にいる企業が「内定」として数えられます。</p>
     </details>
@@ -124,9 +134,10 @@
   <section class="panel" id="ics-panel" aria-labelledby="ics-h" hidden>
     <h2 id="ics-h">カレンダーに書き出し</h2>
     <p>予定を .ics ファイルにして、iPhone や Google カレンダーなどに取り込めます。通知（リマインダー）はカレンダーアプリが出します。</p>
+    <div class="ics-diff" id="ics-diff" aria-live="polite"></div>
     <div class="ics-opts">
       <fieldset>
-        <legend>書き出す予定</legend>
+        <legend>「すべて書き出す」の対象</legend>
         <label class="opt"><input type="radio" name="ics-range" id="ics-range-future" value="future" checked>今日以降の未完了の予定</label>
         <label class="opt"><input type="radio" name="ics-range" id="ics-range-all" value="all">すべての未完了の予定</label>
       </fieldset>
@@ -139,15 +150,29 @@
       </fieldset>
     </div>
     <div class="row">
-      <button type="button" class="btn primary" id="btn-ics-export">書き出す</button>
+      <button type="button" class="btn primary" id="btn-ics-new">新しい予定だけ書き出す</button>
+      <button type="button" class="btn" id="btn-ics-export">すべて書き出す</button>
       <button type="button" class="btn ghost" id="btn-ics-close">閉じる</button>
-      <span class="hint" id="ics-msg" role="status"></span>
     </div>
-    <ul class="hint ics-help">
-      <li>iPhone：ダウンロードしたファイルを開き、「すべて追加」を選びます。</li>
-      <li>Google カレンダー：PC のブラウザで「設定 → インポート/エクスポート」から取り込みます。</li>
-      <li>同じファイルをもう一度取り込むと、アプリによっては予定が重複します。不合格・辞退にした企業の予定は書き出しません。</li>
-    </ul>
+    <p class="hint" id="ics-msg" role="status"></p>
+    <details class="ics-guide">
+      <summary>取り込み方と、予定を変えたときの直し方</summary>
+      <p>書き出したファイルは、その時点の写しです。取り込んだあとにアプリで予定を変えても、カレンダー側は自動では変わりません。同じファイルを取り込み直すと、iPhone では予定が二重になります。そこで「就活ボード」専用のカレンダーに取り込むのがおすすめです。</p>
+      <p class="ics-g-h">iPhone の「カレンダー」アプリ</p>
+      <ol>
+        <li>画面下の「カレンダー」→「カレンダーを追加」で「就活ボード」という名前のカレンダーを作ります。</li>
+        <li>書き出したファイルを開き、「すべて追加」で追加先に「就活ボード」を選びます。</li>
+        <li>予定を足しただけなら「新しい予定だけ書き出す」を同じように取り込みます。</li>
+        <li>日時の変更や取り消しがあったら：「就活ボード」カレンダーを削除（中の予定もまとめて消えます）→ 作り直して「すべて書き出す」のファイルを取り込みます。</li>
+      </ol>
+      <p class="ics-g-h">Google カレンダー（パソコンのブラウザ）</p>
+      <ol>
+        <li>設定 →「カレンダーを追加」→「新しいカレンダーを作成」で「就活ボード」を作ります。</li>
+        <li>設定 →「インポート / エクスポート」でファイルを選び、追加先に「就活ボード」を選びます。</li>
+        <li>同じ予定の変更は上書きされることがありますが、取り消した予定は残ります。きれいにしたいときは「就活ボード」カレンダーを削除して作り直し、「すべて書き出す」を取り込みます。</li>
+      </ol>
+      <p class="hint">不合格・辞退にした企業と完了にした予定は書き出しません。</p>
+    </details>
   </section>
 
   <section class="panel" id="tpl-panel" aria-labelledby="tpl-h" hidden>
@@ -177,6 +202,12 @@
     <button type="button" class="btn small" id="btn-samples-no">キャンセル</button>
   </div>
 
+  <div class="notice" id="notice-ics" role="status" hidden>
+    <span class="grow" id="notice-ics-text"></span>
+    <button type="button" class="btn small" id="btn-ics-check">確認する</button>
+    <button type="button" class="btn small ghost" id="btn-ics-dismiss">閉じる</button>
+  </div>
+
   <section class="summary" aria-label="サマリー">
     <div class="stats" id="stats"></div>
     <div class="upcoming">
@@ -189,6 +220,7 @@
     <div class="tabs" role="tablist" aria-label="表示">
       <button type="button" role="tab" id="view-list" aria-controls="main" aria-selected="true">一覧</button>
       <button type="button" role="tab" id="view-cal" aria-controls="main" aria-selected="false" tabindex="-1">カレンダー</button>
+      <button type="button" role="tab" id="view-cmp" aria-controls="main" aria-selected="false" tabindex="-1">比較</button>
     </div>
   </div>
 
@@ -247,6 +279,7 @@
         <button type="button" role="tab" id="tab-events" aria-controls="pane-events" aria-selected="false" tabindex="-1">予定<span class="tab-n num" id="tab-events-n"></span></button>
         <button type="button" role="tab" id="tab-es" aria-controls="pane-es" aria-selected="false" tabindex="-1">ES<span class="tab-n num" id="tab-es-n"></span></button>
         <button type="button" role="tab" id="tab-iv" aria-controls="pane-iv" aria-selected="false" tabindex="-1">面接<span class="tab-n num" id="tab-iv-n"></span></button>
+        <button type="button" role="tab" id="tab-cond" aria-controls="pane-cond" aria-selected="false" tabindex="-1">条件</button>
         <button type="button" role="tab" id="tab-hist" aria-controls="pane-hist" aria-selected="false" tabindex="-1">履歴</button>
       </div>
     </div>
@@ -399,6 +432,28 @@
         <div class="sed-tools"><button type="button" class="btn small" id="btn-iv-add">＋ 面接の記録を追加</button></div>
         <datalist id="iv-title-suggest"></datalist>
       </div>
+    </div>
+    <div class="dlg-b" role="tabpanel" id="pane-cond" aria-labelledby="tab-cond" hidden>
+      <p class="hint full" style="margin:0">内定が出た企業や、迷っている企業の条件をメモしておくと、「比較」画面で横に並べて比べられます。分かるところだけで大丈夫です。</p>
+      <div class="fld full"><label for="cmp-location">勤務地</label><input class="input" id="cmp-location" maxlength="60" autocomplete="off" placeholder="例：東京（本社）"></div>
+      <div class="fld"><label for="cmp-salary">初任給（月給・円）</label><input class="input" id="cmp-salary" inputmode="numeric" maxlength="9" autocomplete="off" placeholder="例：255000"></div>
+      <div class="fld"><label for="cmp-annual">想定年収（万円）</label><input class="input" id="cmp-annual" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="例：420"></div>
+      <div class="fld"><label for="cmp-bonus">賞与</label><input class="input" id="cmp-bonus" maxlength="60" autocomplete="off" placeholder="例：年2回・4か月"></div>
+      <div class="fld"><label for="cmp-holidays">年間休日（日）</label><input class="input" id="cmp-holidays" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="例：125"></div>
+      <div class="fld"><label for="cmp-housing">住宅補助</label><select class="select" id="cmp-housing"><option value="">—</option><option value="あり">あり</option><option value="一部">一部</option><option value="なし">なし</option></select><input class="input" id="cmp-housingNote" maxlength="60" autocomplete="off" placeholder="内容（例：家賃の8割・入社5年まで）" aria-label="住宅補助の内容"></div>
+      <div class="fld"><label for="cmp-transfer">転勤</label><select class="select" id="cmp-transfer"><option value="">—</option><option value="なし">なし</option><option value="地域限定あり">地域限定あり</option><option value="あり">あり</option></select><input class="input" id="cmp-transferNote" maxlength="60" autocomplete="off" placeholder="内容（例：3〜5年ごと）" aria-label="転勤の内容"></div>
+      <div class="fld full"><label for="cmp-workstyle">勤務形態</label><input class="input" id="cmp-workstyle" maxlength="60" autocomplete="off" placeholder="例：リモート週2・フレックス"></div>
+      <div class="fld full"><label for="cmp-benefits">福利厚生・その他</label><textarea class="input" id="cmp-benefits" maxlength="500" placeholder="例：資格取得支援、社員食堂"></textarea></div>
+      <fieldset class="fld full cmp-rates">
+        <legend>自分の評価（1〜5）<span class="hint" id="cmp-overall"></span></legend>
+        <div class="cmp-rate-grid">
+          <div class="fld"><label for="cmp-r-work">仕事内容</label><select class="select cmp-r" id="cmp-r-work"><option value="">—</option><option value="5">5（とても良い）</option><option value="4">4</option><option value="3">3（ふつう）</option><option value="2">2</option><option value="1">1（よくない）</option></select></div>
+          <div class="fld"><label for="cmp-r-growth">成長</label><select class="select cmp-r" id="cmp-r-growth"><option value="">—</option><option value="5">5（とても良い）</option><option value="4">4</option><option value="3">3（ふつう）</option><option value="2">2</option><option value="1">1（よくない）</option></select></div>
+          <div class="fld"><label for="cmp-r-comfort">働きやすさ</label><select class="select cmp-r" id="cmp-r-comfort"><option value="">—</option><option value="5">5（とても良い）</option><option value="4">4</option><option value="3">3（ふつう）</option><option value="2">2</option><option value="1">1（よくない）</option></select></div>
+          <div class="fld"><label for="cmp-r-stable">安定</label><select class="select cmp-r" id="cmp-r-stable"><option value="">—</option><option value="5">5（とても良い）</option><option value="4">4</option><option value="3">3（ふつう）</option><option value="2">2</option><option value="1">1（よくない）</option></select></div>
+        </div>
+      </fieldset>
+      <p class="sed-msg full" id="cmp-err" role="alert"></p>
     </div>
     <div class="dlg-b" role="tabpanel" id="pane-hist" aria-labelledby="tab-hist" hidden>
       <div class="fld full" id="hist-wrap">

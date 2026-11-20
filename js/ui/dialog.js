@@ -8,6 +8,8 @@ import { normalizeLimit } from "../notes.js";
 import { downloadBlob } from "./download.js";
 import { normalizeKind } from "../notes.js";
 import { buildICS, selectForExport } from "../ics.js";
+import { planExport } from "../ics-sync.js";
+import { COMPARE_FIELDS, RATINGS, normalizeCompare, compareErrors, overallRating } from "../compare.js";
 import { stepsHTML, revealCurrentSteps } from "./stepper.js";
 import { defineEditor, renderEditor, editorOp } from "./stage-editor.js";
 import { parseDate, fmtFull, toInputs, fromInputs, ymd } from "../dates.js";
@@ -25,7 +27,7 @@ export function initDialog(app) {
   const editing = () => (S.editingId ? byId(S.editingId) : null);
 
   /* ---------- tabs ---------- */
-  const TABS = ["basic", "events", "es", "iv", "hist"];
+  const TABS = ["basic", "events", "es", "iv", "cond", "hist"];
   function showTab(name) {
     for (const t of TABS) {
       const on = t === name;
@@ -155,8 +157,10 @@ export function initDialog(app) {
     if (!c) { msg.textContent = "先に保存してから書き出してください。"; return; }
     const items = selectForExport([c], { range: "all" });
     if (!items.length) { msg.textContent = "書き出せる未完了の予定がありません（保存済みの予定が対象です）。"; return; }
-    const ics = buildICS(items, { reminders: app.icsReminders() });
+    const plan = planExport(items, S.icsExport, { mode: "merge" });
+    const ics = buildICS(items, { reminders: app.icsReminders(), seq: plan.seq });
     downloadBlob(new Blob([ics], { type: "text/calendar;charset=utf-8" }), `shukatsu-events-${ymd(new Date())}.ics`);
+    app.saveIcsSnapshot(plan.snapshot);
     msg.textContent = `${items.length} 件の予定を書き出しました（保存済みの内容）。`;
   });
 
@@ -220,6 +224,26 @@ export function initDialog(app) {
   }
   $("c-url").addEventListener("input", updateUrlLink);
 
+  /* ---------- 条件 (comparison) ---------- */
+  const TEXT_KEYS = COMPARE_FIELDS.flatMap((f) => (f.type === "choice" ? [f.key, f.key + "Note"] : [f.key]));
+  function fillCompare(cmp) {
+    for (const k of TEXT_KEYS) $(`cmp-${k}`).value = cmp && cmp[k] != null ? String(cmp[k]) : "";
+    for (const { key } of RATINGS) $(`cmp-r-${key}`).value = cmp && cmp.ratings[key] ? String(cmp.ratings[key]) : "";
+    $("cmp-err").textContent = "";
+    showOverall();
+  }
+  function readCompare() {
+    const raw = {};
+    for (const k of TEXT_KEYS) raw[k] = $(`cmp-${k}`).value.trim();
+    raw.ratings = Object.fromEntries(RATINGS.map(({ key }) => [key, $(`cmp-r-${key}`).value]));
+    return raw;
+  }
+  function showOverall() {
+    const o = overallRating(normalizeCompare(readCompare()));
+    $("cmp-overall").textContent = o === null ? "" : `　総合 ${o.toFixed(1)}`;
+  }
+  $("pane-cond").addEventListener("change", (e) => { if (e.target.classList.contains("cmp-r")) showOverall(); });
+
   /* ---------- open / close ---------- */
   /** id: edit that company. from: prefill a new selection from another company. */
   /** opts.tab: open on that tab (e.g. "events"). */
@@ -242,6 +266,7 @@ export function initDialog(app) {
     rebuildStageSelect(c ? c.stage : def.id);
     $("c-url").value = src ? src.url : "";
     $("c-memo").value = c ? c.memo : "";
+    fillCompare(c ? c.compare : null);
     for (const k of ["form-err", "cs-err", "ev-err", "es-err", "iv-err", "ev-ics-msg"]) $(k).textContent = "";
     $("sibling-wrap").hidden = !c;
     picker.close(); esEd.render(); ivEd.render(); refreshIvTitles(); updateTabCounts(); showTab(opts.tab || "basic");
@@ -314,6 +339,9 @@ export function initDialog(app) {
     if (ev.error) { $("ev-err").textContent = ev.error; return fail("「予定」の欄を確認してください。", ev.id ? `ev-date-${ev.id}` : null, "events"); }
     const badLimit = S.draftES.find((r) => String(r.limit ?? "").trim() && normalizeLimit(r.limit) === null);
     if (badLimit) { $("es-err").textContent = "文字数制限は1〜10000の整数で入れてください（なしなら空欄）。"; return fail("「ES」の欄を確認してください。", `es-l-${badLimit.id}`, "es"); }
+    const rawCmp = readCompare();
+    const cmpErr = compareErrors(rawCmp);
+    if (cmpErr.length) { $("cmp-err").textContent = cmpErr[0] + "（数字だけで入れてください）"; return fail("「条件」の欄を確認してください。", null, "cond"); }
     const badIv = S.draftIV.find((r) => r.date && !/^\d{4}-\d{2}-\d{2}$/.test(r.date));
     if (badIv) { $("iv-err").textContent = "日付が正しくない面接の記録があります。"; return fail("「面接」の欄を確認してください。", `iv-d-${badIv.id}`, "iv"); }
     const stages = chk.stages;
@@ -327,7 +355,7 @@ export function initDialog(app) {
     const rec = {
       id: old ? old.id : newId("c"),
       name, kind: normalizeKind($("c-kind").value), position: $("c-position").value.trim(), industry: $("c-industry").value.trim(),
-      stages, stage, notes, priority: Number($("c-priority").value) || 2,
+      stages, stage, notes, compare: normalizeCompare(rawCmp), priority: Number($("c-priority").value) || 2,
       events: ev.events,
       url, memo: $("c-memo").value, history, updatedAt: now, example: old ? old.example : false,
       iconId: old && !S.icon.removed ? old.iconId : "",
