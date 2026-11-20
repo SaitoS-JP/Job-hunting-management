@@ -1,5 +1,6 @@
 /* Company records: defaults, normalization/migration and stage logic. Pure. */
 import { normalizeEvents } from "./events.js";
+import { normalizeKind, normalizeNotes } from "./notes.js";
 
 export const DEFAULT_STAGES = Object.freeze([
   { id: "interest", label: "気になる" },
@@ -153,12 +154,14 @@ export function normalize(d, idOverride) {
     name: str(d.name, 80),
     position: str(d.position, 80),
     industry: str(d.industry, 40),
+    kind: normalizeKind(d.kind),
     stages, stage,
     priority: pr === 1 || pr === 2 || pr === 3 ? pr : 2,
     // older records kept a single nextDate/nextLabel; they become one event
     events: normalizeEvents(d.events, d.nextDate, d.nextLabel),
     url: typeof d.url === "string" && /^https?:\/\//i.test(d.url) ? d.url.slice(0, 2000) : "",
     memo: str(d.memo, 4000),
+    notes: normalizeNotes(d.notes),
     history,
     updatedAt: typeof d.updatedAt === "string" ? d.updatedAt : "",
     example: d.example === true,

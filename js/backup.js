@@ -1,9 +1,10 @@
 /* Backup file format: serialize, validate, and plan an import. Pure. */
 import { normalize, cleanStages, newId } from "./model.js";
 import { parseDate } from "./dates.js";
+import { notesErrors, MAX_KIND } from "./notes.js";
 
 export const APP_ID = "shukatsu-board";
-export const BACKUP_VERSION = 3;
+export const BACKUP_VERSION = 4;
 export const MAX_FILE_BYTES = 60 * 1024 * 1024;
 export const MAX_COMPANIES = 5000;
 export const MAX_ICON_BYTES = 2 * 1024 * 1024;
@@ -54,6 +55,8 @@ function companyErrors(c) {
   if (c.nextDate != null && c.nextDate !== "" && !parseDate(c.nextDate)) errs.push("次の予定の日付が読めません");
   if (c.stages != null && !cleanStages(c.stages)) errs.push("選考段階の形式が正しくありません");
   if (c.history != null && !Array.isArray(c.history)) errs.push("履歴の形式が正しくありません");
+  if (c.kind != null && (typeof c.kind !== "string" || c.kind.length > MAX_KIND)) errs.push(`選考の種類は${MAX_KIND}文字までの文字列にしてください`);
+  errs.push(...notesErrors(c.notes));
   return errs;
 }
 

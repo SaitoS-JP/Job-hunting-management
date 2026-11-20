@@ -67,11 +67,13 @@ export function agenda(companies, { now = new Date(), limit = 5, overdueLimit = 
   return { upcoming: up.slice(0, limit), overdue: over.slice(0, overdueLimit), overdueTotal: over.length };
 }
 
-/** Mark one event done (pure). Returns the same object if nothing changes. */
-export function withEventDone(c, eventId, now = new Date()) {
-  if (!(c.events || []).some((e) => e.id === eventId && !e.done)) return c;
-  return { ...c, events: c.events.map((e) => (e.id === eventId ? { ...e, done: true } : e)), updatedAt: now.toISOString() };
+/** Set one event's done flag (pure). Returns the same object if nothing changes. */
+export function withEventState(c, eventId, done, now = new Date()) {
+  if (!(c.events || []).some((e) => e.id === eventId && e.done !== done)) return c;
+  return { ...c, events: c.events.map((e) => (e.id === eventId ? { ...e, done } : e)), updatedAt: now.toISOString() };
 }
+/** Mark one event done (pure). Returns the same object if nothing changes. */
+export const withEventDone = (c, eventId, now = new Date()) => withEventState(c, eventId, true, now);
 
 /** Dialog rows {id,date,time,label,done} -> events, or {error}. Empty rows are dropped. */
 export function eventsFromRows(rows, toIso) {

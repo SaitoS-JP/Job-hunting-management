@@ -86,3 +86,25 @@ test("memory store applies an import all-or-nothing", async () => {
   await s.applyImport(plan);
   assert.deepEqual((await s.all()).map((c) => c.id), ["n"]);
 });
+
+test("v4 keeps kind and notes; v3 (no kind/notes) migrates to defaults", () => {
+  const c4 = normalize({ id: "a", name: "社", kind: "ウィンターインターン", notes: { es: [{ id: "q1", question: "自己PR", answer: "粘り強さ" }], interviews: [] } });
+  const v4 = validateBackup(JSON.stringify(serializeBackup({ companies: [c4], template: DEFAULT_STAGES, icons: {} })));
+  assert.equal(v4.ok, true);
+  assert.equal(v4.version, 4);
+  assert.equal(v4.companies[0].kind, "ウィンターインターン");
+  assert.equal(v4.companies[0].notes.es[0].answer, "粘り強さ");
+  const v3 = validateBackup(file({ version: 3, companies: [{ id: "b", name: "旧", events: [{ id: "e", at: "2026-11-25T00:00:00Z", label: "x" }] }] }));
+  assert.equal(v3.ok, true);
+  assert.equal(v3.companies[0].kind, "本選考");
+  assert.deepEqual(v3.companies[0].notes, { es: [], interviews: [] });
+});
+test("v4 validation rejects oversized notes and bad kind", () => {
+  const long = validateBackup(file({ version: 4, companies: [{ name: "a", notes: { es: [{ question: "q", answer: "x".repeat(10001) }] } }] }));
+  assert.equal(long.ok, false);
+  assert.match(long.errors[0], /10000/);
+  const many = validateBackup(file({ version: 4, companies: [{ name: "a", notes: { interviews: Array.from({ length: 51 }, () => ({ title: "t" })) } }] }));
+  assert.equal(many.ok, false);
+  const kind = validateBackup(file({ version: 4, companies: [{ name: "a", kind: 5 }] }));
+  assert.equal(kind.ok, false);
+});
