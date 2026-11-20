@@ -96,10 +96,10 @@
 
 ## 設計
 
-端末内だけに保存し、外部と通信しない作りです。データの形式、保存と復元の仕組み、セキュリティ、更新の方法などは [docs/DESIGN.md](docs/DESIGN.md) にまとめています。変更の履歴は [CHANGELOG.md](CHANGELOG.md) を参照してください。
+端末内だけに保存し、外部と通信しない作りです。データの形式、保存と復元の仕組み、セキュリティ、更新の方法などは [docs/DESIGN.md](docs/DESIGN.md) にまとめています。変更の履歴は [CHANGELOG.md](CHANGELOG.md) を参照してください。スマホの実機での確認手順は [docs/TESTING.md](docs/TESTING.md) にあります。
 
 ## 開発
 
 - テスト：`npm test`（Node.js 22 以上。追加のパッケージは不要です）
 - ローカルで確認：`python3 -m http.server` を実行して http://localhost:8000/ を開く
-- 公開するときは `sw.js` の `VERSION` を上げてください（利用者の端末のキャッシュが更新されます）
+- 公開するときは `sw.js` の `VERSION` を上げ、`index.html` の「バージョン」と `CHANGELOG.md` の新しい項目を同じ番号にしてください（テストで一致を確認しています）
