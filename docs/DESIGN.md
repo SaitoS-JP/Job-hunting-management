@@ -38,6 +38,8 @@ flowchart TD
     backup[backup.js<br>検証・取り込み計画]
     samples[samples.js]
     es[es.js<br>ESの使い回し]
+    cmp[compare.js<br>比較の条件]
+    icssync[ics-sync.js<br>書き出しの記録と差分]
   end
   main --> model & events & calendar & ics
   ui_pan --> backup
@@ -62,13 +64,14 @@ UI モジュールは `$`/`esc`（ui/html.js）で DOM に触れ、データの�
 | `events` | 予定 `[{id, at, label, done}]`（`at` は ISO 日時。日付だけの予定は現地時刻の 0:00） |
 | `notes` | `{es: [{id, question, answer, limit, updatedAt}], interviews: [{id, date, title, questions, reflection}]}`（`limit` は文字数制限 1〜10000 または null。文字数は改行を除いて数える） |
 | `url` / `memo` | マイページ URL（http/https のみ）・自由メモ |
+| `compare` | 比較の条件 `{location, salary, annual, bonus, holidays, housing, housingNote, transfer, transferNote, workstyle, benefits, ratings: {work, growth, comfort, stable}}`（数値は範囲外なら null、選択肢は決まった値のみ、評価は 1〜5） |
 | `iconId` | icons ストアのキー（なければ社名の頭文字を表示） |
 | `example` | サンプルデータかどうか |
 | `updatedAt` | 更新日時 |
 
 ### その他のストア
 
-- **settings**：`template`（新しい企業に使う段階の並び `{stages}`）
+- **settings**：`template`（新しい企業に使う段階の並び `{stages}`）、`lastBackupAt`、`icsExport`（カレンダー書き出しの記録。下記）、`compareIds`（比較に並べる企業。未設定なら内定の企業と条件を入れた企業）
 - **icons**：キー `iconId`、値 `{type, data: ArrayBuffer}`（128×128 に縮小した WebP/PNG。古い Safari の Blob 保存の問題を避けるため ArrayBuffer で保存）
 
 ## 保存とトランザクション
@@ -86,7 +89,7 @@ UI モジュールは `$`/`esc`（ui/html.js）で DOM に触れ、データの�
 - **レコード**：読み込みのたびに `normalize()` を通します。欠けた項目は既定値（段階は初期の8段階、種類は「本選考」、記録は空）になり、旧形式の `nextDate`/`nextLabel` は予定1件に変換します
 - **IndexedDB**：DB バージョン 2（settings ストアを追加）
 - **内定の印**：`offer` を持たない古い段階の並び（レコード・テンプレート・v1〜v4 のバックアップ）は、id が `offer` の段階、なければ名前に「内定」を含む最後の段階に印を付けます。どちらもなければ印なし（最後の段階だからという理由では付けません）。新しい形式ではすべての段階に `offer` の真偽値を保存するので、利用者が印を外した並びが読み込み時に勝手に戻ることはありません
-- **バックアップファイル**：`version` 1〜5 を読み込み可能（v2 で選考段階とテンプレート、v3 で予定、v4 で種類と ES/面接の記録、v5 で内定の印と ES の文字数制限）。より新しい版は読み込みを断ります
+- **バックアップファイル**：`version` 1〜6 を読み込み可能（v2 で選考段階とテンプレート、v3 で予定、v4 で種類と ES/面接の記録、v5 で内定の印と ES の文字数制限、v6 で比較の条件）。より新しい版は読み込みを断ります
 
 ## セキュリティ
 
@@ -112,6 +115,15 @@ UI モジュールは `$`/`esc`（ui/html.js）で DOM に触れ、データの�
 - 対象：日付計算（月・年またぎ、うるう年）、期限表示、選考段階の操作と移行、予定の選び方、カレンダーのマス目、.ics（エスケープ・折り返し・終日/時刻あり・通知・UID）、種類と記録の正規化・検索、バックアップの検証と取り込み計画、メモリストアの全部か無しかの反映
 - テストは `TZ=Asia/Tokyo` を設定してから実行し、端末のタイムゾーンに左右されないようにしています
 - GitHub Actions（`.github/workflows/test.yml`）で push と pull request のたびに実行
+
+## カレンダー書き出しの記録（ics-sync.js）
+
+.ics ファイルはその時点の写しで、iPhone のカレンダーは同じファイルを開き直すと予定を二重に追加し、既存の予定を更新しません。Google カレンダーの取り込みは同じ UID の予定を更新することがありますが、なくなった予定は消しません。そこで、
+
+- 書き出すたびに `icsExport = {at, items: {UID: {h, k, seq, at, label, company}}}` を端末に保存します。`h` はファイルに書く内容すべて（日時・内容・社名・種類・職種・選考段階・URL）のハッシュ、`k` はカレンダーで目に見える部分（日時・内容・社名・種類）のハッシュです
+- `diffExport()` が今の予定と比べて「新しい予定（未書き出しで今日以降）・変更・なくなった予定（削除・完了・不合格/辞退）」を出します。お知らせに数えるのは、目に見える変更（`k` の違い）となくなった予定だけで、選考段階が進んで説明欄だけ変わったものは数えません
+- 「新しい予定だけ書き出す」は記録に足すだけ（merge）、「すべて書き出す」は記録を置き換えます（full）。`h` が変わった UID は `SEQUENCE` を1つ上げ、`LAST-MODIFIED` とともに書き出します
+- なくなった予定を `STATUS:CANCELLED` で書き出すことはしていません。iPhone のカレンダーでは取り消しとして扱われず、新しい予定として増えてしまうためです。代わりに専用カレンダーの作り直しを案内します
 
 ## はじめての人向けの案内
 
