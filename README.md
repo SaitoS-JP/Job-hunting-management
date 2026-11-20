@@ -9,6 +9,27 @@
 
 登録不要・無料で使えます。スマホなら下の「インストール」の手順でホーム画面に追加するのがおすすめです。
 
+## 画面
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/phone-list.png" width="240" alt="スマホの一覧表示"></td>
+    <td><img src="docs/screenshots/phone-calendar.png" width="240" alt="スマホのカレンダー表示"></td>
+    <td><img src="docs/screenshots/phone-es.png" width="240" alt="ESの記録"></td>
+  </tr>
+  <tr>
+    <td align="center">一覧</td>
+    <td align="center">カレンダー</td>
+    <td align="center">ESの記録</td>
+  </tr>
+</table>
+
+<img src="docs/screenshots/desktop-list.png" width="800" alt="パソコンの一覧表示">
+
+<img src="docs/screenshots/desktop-calendar-dark.png" width="800" alt="パソコンのカレンダー表示（ダークモード）">
+
+（画面はすべて架空のサンプルデータです）
+
 ## できること
 
 - 選考段階：初期状態は 気になる → エントリー → ES・書類選考 → 適性検査・Webテスト → GD・一次面接 → 二次面接 → 最終面接 → 内定（不合格・辞退も記録できます）
@@ -62,6 +83,10 @@
 ## フォントのライセンス
 
 `fonts/` に同梱している Zen Kaku Gothic New と IBM Plex Mono は SIL Open Font License 1.1 で配布されています。ライセンス本文は各フォルダの `OFL.txt` を参照してください。
+
+## 設計
+
+端末内だけに保存し、外部と通信しない作りです。データの形式、保存と復元の仕組み、セキュリティ、更新の方法などは [docs/DESIGN.md](docs/DESIGN.md) にまとめています。変更の履歴は [CHANGELOG.md](CHANGELOG.md) を参照してください。
 
 ## 開発
 
