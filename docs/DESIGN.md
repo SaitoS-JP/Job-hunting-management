@@ -22,6 +22,8 @@ flowchart TD
   main --> ui_pan[ui/panels.js<br>テンプレート・バックアップ]
   ui_dlg --> ui_sed[ui/stage-editor.js]
   ui_dlg --> ui_notes[ui/notes-editor.js]
+  ui_dlg --> ui_pick[ui/es-picker.js<br>他社のESから使う]
+  ui_pick --> es
   ui_list --> ui_step[ui/stepper.js]
   main --> store[store.js<br>IndexedDB / メモリ]
   main --> icons[icons.js<br>アイコン]
@@ -35,6 +37,7 @@ flowchart TD
     ics[ics.js<br>.ics 生成]
     backup[backup.js<br>検証・取り込み計画]
     samples[samples.js]
+    es[es.js<br>ESの使い回し]
   end
   main --> model & events & calendar & ics
   ui_pan --> backup
@@ -53,11 +56,11 @@ UI モジュールは `$`/`esc`（ui/html.js）で DOM に触れ、データの�
 | `name` / `position` / `industry` | 社名・職種/コース・業界 |
 | `kind` | 選考の種類（本選考・サマーインターンなど。自由入力、未設定は「本選考」） |
 | `priority` | 志望度 1〜3 |
-| `stages` | この企業の選考段階 `[{id, label}]`（並び順どおり。最後の段階が「内定」扱い） |
+| `stages` | この企業の選考段階 `[{id, label, offer}]`（並び順どおり。`offer: true` は1つまで。その段階とそれ以降が「内定」扱い。印がなければ内定なし） |
 | `stage` | いまの段階の `id`、または終了状態 `rejected` / `declined` |
 | `history` | 段階の変更履歴 `[{stage, at, label}]`（ラベルも保存し、段階の名前変更・削除後も読めるように） |
 | `events` | 予定 `[{id, at, label, done}]`（`at` は ISO 日時。日付だけの予定は現地時刻の 0:00） |
-| `notes` | `{es: [{id, question, answer, updatedAt}], interviews: [{id, date, title, questions, reflection}]}` |
+| `notes` | `{es: [{id, question, answer, limit, updatedAt}], interviews: [{id, date, title, questions, reflection}]}`（`limit` は文字数制限 1〜10000 または null。文字数は改行を除いて数える） |
 | `url` / `memo` | マイページ URL（http/https のみ）・自由メモ |
 | `iconId` | icons ストアのキー（なければ社名の頭文字を表示） |
 | `example` | サンプルデータかどうか |
@@ -82,7 +85,8 @@ UI モジュールは `$`/`esc`（ui/html.js）で DOM に触れ、データの�
 
 - **レコード**：読み込みのたびに `normalize()` を通します。欠けた項目は既定値（段階は初期の8段階、種類は「本選考」、記録は空）になり、旧形式の `nextDate`/`nextLabel` は予定1件に変換します
 - **IndexedDB**：DB バージョン 2（settings ストアを追加）
-- **バックアップファイル**：`version` 1〜4 を読み込み可能（v2 で選考段階とテンプレート、v3 で予定、v4 で種類と ES/面接の記録）。より新しい版は読み込みを断ります
+- **内定の印**：`offer` を持たない古い段階の並び（レコード・テンプレート・v1〜v4 のバックアップ）は、id が `offer` の段階、なければ名前に「内定」を含む最後の段階に印を付けます。どちらもなければ印なし（最後の段階だからという理由では付けません）。新しい形式ではすべての段階に `offer` の真偽値を保存するので、利用者が印を外した並びが読み込み時に勝手に戻ることはありません
+- **バックアップファイル**：`version` 1〜5 を読み込み可能（v2 で選考段階とテンプレート、v3 で予定、v4 で種類と ES/面接の記録、v5 で内定の印と ES の文字数制限）。より新しい版は読み込みを断ります
 
 ## セキュリティ
 
