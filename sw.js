@@ -1,12 +1,26 @@
 /* 就活ボード service worker — offline app shell. Bump VERSION on every release. */
-const VERSION = "v4";
+const VERSION = "v5";
 const SHELL_CACHE = "shukatsu-shell-" + VERSION;
 const FONT_CACHE = "shukatsu-fonts-v2";
 const SHELL = [
   "./",
   "./index.html",
   "./app.css",
-  "./app.js",
+  "./js/main.js",
+  "./js/store.js",
+  "./js/model.js",
+  "./js/events.js",
+  "./js/dates.js",
+  "./js/backup.js",
+  "./js/samples.js",
+  "./js/icons.js",
+  "./js/ui/html.js",
+  "./js/ui/stepper.js",
+  "./js/ui/list.js",
+  "./js/ui/summary.js",
+  "./js/ui/stage-editor.js",
+  "./js/ui/dialog.js",
+  "./js/ui/panels.js",
   "./manifest.webmanifest",
   "./icons/icon-180.png",
   "./icons/icon-192.png",

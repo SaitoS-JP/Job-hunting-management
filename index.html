@@ -45,20 +45,23 @@
 
   <section class="panel" id="backup-panel" aria-labelledby="backup-h" hidden>
     <h2 id="backup-h">バックアップ</h2>
-    <p>書き出したファイル（JSON）には全企業の記録とアイコン画像が含まれます。別の端末やブラウザで「読み込み」すると復元できます。</p>
+    <p>書き出したファイル（JSON）には全企業の記録・予定・アイコン画像が含まれます。別の端末やブラウザで「読み込み」すると復元できます。</p>
+    <p class="hint">バックアップファイルは暗号化されていません。自分だけが開ける場所に保存し、チャットやメールで送るのは避けてください。</p>
     <div class="row">
       <button type="button" class="btn" id="btn-export">書き出し</button>
       <span class="btn file-btn">読み込み<input type="file" id="backup-file" accept="application/json,.json" aria-label="バックアップファイルを読み込む"></span>
       <span class="hint" id="backup-msg" role="status"></span>
     </div>
+    <ul class="backup-errors" id="backup-errors" role="alert" hidden></ul>
     <div id="import-confirm" hidden>
       <p class="import-summary" id="import-summary"></p>
       <div class="row">
         <button type="button" class="btn primary" id="btn-import-merge">追加する</button>
+        <button type="button" class="btn" id="btn-import-export">先に今のデータを書き出す（おすすめ）</button>
         <button type="button" class="btn danger" id="btn-import-replace">置き換える</button>
         <button type="button" class="btn ghost" id="btn-import-cancel">キャンセル</button>
       </div>
-      <p class="hint" style="margin-top:8px">「追加」は今のデータを残したまま加えます。「置き換え」は今のデータをすべて消してから読み込みます（元に戻せません）。</p>
+      <p class="hint" style="margin-top:8px">「追加」は今のデータを残したまま加えます。「置き換え」は今のデータをすべて消してから読み込みます（元に戻せません）。途中で失敗した場合は何も変更されません。</p>
     </div>
   </section>
 
@@ -185,20 +188,16 @@
           <span class="hint" id="icon-hint"></span>
         </div>
       </div>
-      <div class="fld">
-        <label for="c-next-date">次の予定（日付・時刻）</label>
-        <div class="dt-pair">
-          <input type="date" class="input" id="c-next-date" name="nextDate" aria-label="次の予定の日付">
-          <input type="time" class="input" id="c-next-time" name="nextTime" aria-label="次の予定の時刻（任意）">
-        </div>
-      </div>
-      <div class="fld">
-        <label for="c-next-label">予定の内容</label>
-        <input class="input" id="c-next-label" name="nextLabel" maxlength="40" autocomplete="off" placeholder="例：一次面接 / ES締切" list="label-suggest">
+      <div class="fld full" id="ev-wrap">
+        <span class="section-h" id="ev-h">予定</span>
+        <ol class="evs" id="ev-list" aria-labelledby="ev-h"></ol>
+        <p class="sed-msg" id="ev-err" role="alert"></p>
+        <div class="sed-tools"><button type="button" class="btn small" id="btn-ev-add">＋ 予定を追加</button></div>
         <datalist id="label-suggest">
-          <option value="ES締切"></option><option value="説明会"></option><option value="Webテスト締切"></option>
-          <option value="GD"></option><option value="一次面接"></option><option value="二次面接"></option>
-          <option value="最終面接"></option><option value="内定承諾期限"></option>
+          <option value="ES提出"></option><option value="ES締切"></option><option value="適性検査"></option>
+          <option value="Webテスト締切"></option><option value="説明会"></option><option value="GD"></option>
+          <option value="一次面接"></option><option value="二次面接"></option><option value="最終面接"></option>
+          <option value="内定承諾期限"></option>
         </datalist>
       </div>
       <div class="fld full">
@@ -230,6 +229,6 @@
   </form>
 </dialog>
 
-<script src="./app.js"></script>
+<script type="module" src="./js/main.js"></script>
 </body>
 </html>
