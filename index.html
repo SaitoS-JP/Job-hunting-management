@@ -45,6 +45,11 @@
     <button type="button" class="btn small ghost" id="btn-ios-hint-close">閉じる</button>
   </div>
 
+  <div class="notice warn" id="notice-backup" role="status" hidden>
+    <span class="grow" id="notice-backup-text"></span>
+    <button type="button" class="btn small primary" id="btn-backup-now">今すぐ書き出す</button>
+    <button type="button" class="btn small" id="btn-backup-later">あとで</button>
+  </div>
   <p class="local-note" id="local-note">データはこの端末のブラウザ内だけに保存され、どこにも送信されません。機種変更やブラウザのデータ削除に備えて、ときどき「バックアップ」から書き出してください。</p>
 
   <section class="panel" id="backup-panel" aria-labelledby="backup-h" hidden>
@@ -55,6 +60,7 @@
       <button type="button" class="btn" id="btn-export">書き出し</button>
       <span class="btn file-btn">読み込み<input type="file" id="backup-file" accept="application/json,.json" aria-label="バックアップファイルを読み込む"></span>
       <span class="hint" id="backup-msg" role="status"></span>
+      <span class="hint" id="backup-last"></span>
     </div>
     <ul class="backup-errors" id="backup-errors" role="alert" hidden></ul>
     <div id="import-confirm" hidden>

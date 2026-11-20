@@ -22,10 +22,17 @@ export const fmtShort = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
 export const fmtFull = (d) => `${d.getFullYear()}/${p2(d.getMonth() + 1)}/${p2(d.getDate())}`;
 export const ymd = (d) => `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}`;
 
+/** Has this moment passed? An event with a time is past once that minute has
+    passed (10:00 deadline at 15:00 the same day = past). A date-only event
+    (local midnight) stays current until the end of its day. */
+export function isPast(d, now = new Date()) {
+  return hasTime(d) ? d.getTime() < now.getTime() : dayDiff(d, now) < 0;
+}
+
 /** Due badge classification: {cls, text} where cls is past|today|soon|later. */
 export function dueInfo(d, now = new Date()) {
   const n = dayDiff(d, now);
-  if (n < 0) return { cls: "past", text: "期限切れ", days: n };
+  if (isPast(d, now)) return { cls: "past", text: "期限切れ", days: Math.min(n, 0) };
   if (n === 0) return { cls: "today", text: "今日", days: 0 };
   if (n === 1) return { cls: "soon", text: "明日", days: 1 };
   if (n <= 3) return { cls: "soon", text: `あと${n}日`, days: n };

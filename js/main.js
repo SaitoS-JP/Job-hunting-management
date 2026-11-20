@@ -8,7 +8,8 @@ import { downloadBlob } from "./ui/download.js";
 import { $, esc } from "./ui/html.js";
 import { openStore, createMemoryStore } from "./store.js";
 import { DEFAULT_STAGES, cloneStages, cleanStages, normalize, isTerm, isActive, colorAt, withStage, nextStageId, prevStageId, restoreStageId } from "./model.js";
-import { p2, WD, ymd } from "./dates.js";
+import { p2, WD, ymd, fmtFull } from "./dates.js";
+import { backupReminder } from "./backup.js";
 import { buildSamples } from "./samples.js";
 import { IconCache, installIconFallback } from "./icons.js";
 import { listHTML } from "./ui/list.js";
@@ -18,7 +19,7 @@ import { installEditorEvents } from "./ui/stage-editor.js";
 import { initDialog } from "./ui/dialog.js";
 import { initTemplatePanel, initBackupPanel } from "./ui/panels.js";
 
-const LS = { sort: "shukatsu.sort", iosHint: "shukatsu.iosHintDismissed", view: "shukatsu.view" };
+const LS = { sort: "shukatsu.sort", iosHint: "shukatsu.iosHintDismissed", view: "shukatsu.view", backupSnooze: "shukatsu.backupSnoozeUntil" };
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 
@@ -59,6 +60,7 @@ async function reload() {
     const t = await store.getSetting("template").catch(() => undefined);
     S.template = cleanStages(t && t.stages) || cloneStages(DEFAULT_STAGES);
     S.docs = (await store.all()).map((r) => normalize(r, r.id));
+    S.lastBackupAt = (await store.getSetting("lastBackupAt").catch(() => "")) || "";
     S.loaded = true;
     await icons.sync(store, S.docs.map((c) => c.iconId));
     render();
@@ -125,6 +127,7 @@ function render() {
   $("main").setAttribute("aria-labelledby", cal ? "view-cal" : "view-list");
   $("sort-wrap").hidden = cal;
   const now = new Date();
+  renderBackupReminder(now);
   renderStats(S.docs);
   renderUpcoming(S.docs, iconUrl, now);
   const main = $("main");
@@ -147,12 +150,27 @@ function render() {
   revealCurrentSteps(main);
 }
 
+function renderBackupReminder(now) {
+  const last = S.lastBackupAt ? new Date(S.lastBackupAt) : null;
+  $("backup-last").textContent = last && !isNaN(last) ? `前回の書き出し：${fmtFull(last)}` : "まだ書き出していません";
+  const r = S.loaded ? backupReminder({ companies: S.docs, lastBackupAt: S.lastBackupAt, snoozeUntil: lsGet(LS.backupSnooze) || "", now }) : null;
+  $("notice-backup").hidden = !r;
+  if (r) $("notice-backup-text").textContent = r.never
+    ? "まだバックアップを書き出していません。データはこの端末の中にしかないため、端末の故障やブラウザのデータ削除で消えてしまいます。"
+    : `最後のバックアップから${r.days}日たち、その後に変更があります。念のため書き出しておきましょう。`;
+}
+
 /* ---------- wiring ---------- */
 installIconFallback();
 installEditorEvents();
 const { openDialog } = initDialog(app);
 initTemplatePanel(app);
 initBackupPanel(app);
+$("btn-backup-now").addEventListener("click", () => app.exportBackup && app.exportBackup());
+$("btn-backup-later").addEventListener("click", () => {
+  lsSet(LS.backupSnooze, new Date(Date.now() + 3 * 86400000).toISOString());
+  $("notice-backup").hidden = true;
+});
 
 async function insertSamples() {
   try { for (const rec of buildSamples(S.template)) await saveRecord(rec); await reload(); }

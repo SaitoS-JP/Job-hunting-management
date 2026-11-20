@@ -20,9 +20,11 @@ test("nearest picks the first upcoming not-done event and counts the rest", () =
   assert.equal(n.overdue, false);
   assert.equal(n.more, 2); // a and the overdue d
 });
-test("an event earlier today still counts as upcoming", () => {
+test("an event whose time passed earlier today is overdue; a date-only one today is not", () => {
   const n = nearestEvent(co([{ id: "a", at: L(2026, 11, 20, 9), label: "", done: false }]), NOW);
-  assert.equal(n.overdue, false);
+  assert.equal(n.overdue, true);
+  const m = nearestEvent(co([{ id: "b", at: L(2026, 11, 20), label: "", done: false }]), NOW);
+  assert.equal(m.overdue, false);
 });
 test("with nothing upcoming, the most recent overdue one is shown", () => {
   const c = co([
@@ -42,7 +44,7 @@ test("done events are excluded; none left means no nearest", () => {
 });
 test("agenda keeps upcoming and overdue separate; overdue never pushes out upcoming", () => {
   const a = co([{ id: "1", at: L(2026, 11, 21), label: "", done: false }, { id: "2", at: L(2026, 11, 23), label: "", done: false }, { id: "3", at: L(2026, 11, 1), label: "", done: false }], { id: "A" });
-  const b = co([{ id: "4", at: L(2026, 11, 7), label: "", done: false }, { id: "5", at: L(2026, 11, 22), label: "", done: false }, { id: "6", at: L(2026, 12, 1), label: "", done: false }, { id: "7", at: L(2026, 12, 2), label: "", done: false }, { id: "t", at: L(2026, 11, 20, 9), label: "today", done: false }], { id: "B" });
+  const b = co([{ id: "4", at: L(2026, 11, 7), label: "", done: false }, { id: "5", at: L(2026, 11, 22), label: "", done: false }, { id: "6", at: L(2026, 12, 1), label: "", done: false }, { id: "7", at: L(2026, 12, 2), label: "", done: false }, { id: "t", at: L(2026, 11, 20, 18), label: "today", done: false }], { id: "B" });
   const ended = co([{ id: "x", at: L(2026, 11, 21), label: "", done: false }], { id: "X", stage: "rejected" });
   const out = agenda([a, b, ended], { now: NOW, include: (c) => c.stage !== "rejected" });
   assert.deepEqual(out.upcoming.map((x) => x.event.id), ["t", "1", "5", "2", "6"]);
@@ -81,4 +83,19 @@ test("dialog rows: empty rows dropped, missing date rejected", () => {
   assert.match(eventsFromRows([{ id: "a", date: "", time: "", label: "面接" }], fromInputs).error, /日付/);
   const r = eventsFromRows([{ id: "b", date: "2026-11-30", time: "", label: "B" }, { id: "a", date: "2026-11-24", time: "10:00", label: "A", done: true }], fromInputs);
   assert.deepEqual(r.events.map((e) => [e.id, e.done]), [["a", true], ["b", false]]);
+});
+
+test("a deadline earlier today moves to overdue, a later one stays upcoming", () => {
+  const c = co([
+    { id: "am", at: new Date(2026, 10, 20, 10).toISOString(), label: "ES締切", done: false },
+    { id: "pm", at: new Date(2026, 10, 20, 18).toISOString(), label: "説明会", done: false },
+    { id: "day", at: new Date(2026, 10, 20).toISOString(), label: "Webテスト", done: false },
+  ]);
+  const at3pm = new Date(2026, 10, 20, 15);
+  const out = agenda([c], { now: at3pm });
+  assert.deepEqual(out.upcoming.map((x) => x.event.id), ["day", "pm"]);
+  assert.deepEqual(out.overdue.map((x) => x.event.id), ["am"]);
+  const n = nearestEvent(c, at3pm);
+  assert.equal(n.event.id, "day");
+  assert.equal(n.overdue, false);
 });

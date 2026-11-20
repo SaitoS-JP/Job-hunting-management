@@ -1,5 +1,5 @@
 /* iCalendar (RFC 5545) export so calendar apps can remind about events. Pure. */
-import { parseDate, dayDiff, hasTime, p2 } from "./dates.js";
+import { parseDate, hasTime, isPast, p2 } from "./dates.js";
 import { isTerm, stageLabel } from "./model.js";
 
 export const REMINDERS = Object.freeze({
@@ -9,7 +9,7 @@ export const DEFAULT_REMINDERS = Object.freeze(["d3", "d1"]);
 
 /** TEXT value escaping: backslash, semicolon, comma and newlines. */
 export function escapeText(s) {
-  return String(s ?? "").replace(/\\/g, "\\\\").replace(/;/g, "\;").replace(/,/g, "\\,").replace(/\r\n|\r|\n/g, "\\n");
+  return String(s ?? "").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r\n|\r|\n/g, "\\n");
 }
 
 const enc = new TextEncoder();
@@ -61,7 +61,7 @@ export function selectForExport(companies, { range = "future", now = new Date() 
     for (const e of c.events || []) {
       const d = parseDate(e.at);
       if (!d || e.done) continue;
-      if (range === "future" && dayDiff(d, now) < 0) continue;
+      if (range === "future" && isPast(d, now)) continue;
       out.push({ company: c, event: e });
     }
   }

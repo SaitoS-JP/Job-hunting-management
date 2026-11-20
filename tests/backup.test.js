@@ -108,3 +108,18 @@ test("v4 validation rejects oversized notes and bad kind", () => {
   const kind = validateBackup(file({ version: 4, companies: [{ name: "a", kind: 5 }] }));
   assert.equal(kind.ok, false);
 });
+
+test("backup reminder: only for own data, after 7 days, and only when changed since the last backup", async () => {
+  const { backupReminder } = await import("../js/backup.js");
+  const now = new Date("2026-11-20T03:00:00Z");
+  const daysAgo = (n) => new Date(now.getTime() - n * 86400000).toISOString();
+  const rec = (updatedAt, extra = {}) => ({ id: "x", updatedAt, history: [{ stage: "entry", at: updatedAt }], ...extra });
+  assert.equal(backupReminder({ companies: [], now }), null);
+  assert.equal(backupReminder({ companies: [rec(daysAgo(30), { example: true })], now }), null);
+  assert.equal(backupReminder({ companies: [rec(daysAgo(2))], now }), null);
+  assert.deepEqual(backupReminder({ companies: [rec(daysAgo(8))], now }), { never: true, days: 8 });
+  assert.equal(backupReminder({ companies: [rec(daysAgo(20))], lastBackupAt: daysAgo(10), now }), null);
+  assert.deepEqual(backupReminder({ companies: [rec(daysAgo(1))], lastBackupAt: daysAgo(10), now }), { never: false, days: 10 });
+  assert.equal(backupReminder({ companies: [rec(daysAgo(1))], lastBackupAt: daysAgo(3), now }), null);
+  assert.equal(backupReminder({ companies: [rec(daysAgo(8))], snoozeUntil: daysAgo(-1), now }), null);
+});

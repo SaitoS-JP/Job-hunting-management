@@ -66,6 +66,9 @@ export function initBackupPanel(app) {
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
       msg(`${companies.length} 社分を書き出しました。`);
+      const at = new Date().toISOString();
+      await app.store().putSetting("lastBackupAt", at).catch(() => {});
+      S.lastBackupAt = at; app.render();
     } catch (e) { msg("書き出しに失敗しました。"); }
   }
 
@@ -108,6 +111,7 @@ export function initBackupPanel(app) {
     $("btn-backup").setAttribute("aria-expanded", String(!p.hidden));
     if (!p.hidden) $("btn-export").focus();
   });
+  app.exportBackup = exportBackup;
   $("btn-export").addEventListener("click", exportBackup);
   $("btn-import-export").addEventListener("click", exportBackup);
   $("backup-file").addEventListener("change", (e) => { const f = e.target.files && e.target.files[0]; if (f) readBackup(f); });

@@ -122,3 +122,27 @@ export function planImport(v, mode, existingIds = [], idGen = newId) {
   }
   return { clear: mode === "replace", companies, icons, template: mode === "replace" ? v.template : null };
 }
+
+/** Should the app remind to back up? Data lives only on this device, so a lost
+    phone or cleared browser data loses everything without a recent export.
+    Reminds when there are own (non-sample) changes not yet in a backup and the
+    last backup (or, if never, the first record) is at least `afterDays` old.
+    Returns null or { never, days }. */
+export function backupReminder({ companies, lastBackupAt = "", snoozeUntil = "", now = new Date(), afterDays = 7 }) {
+  const own = (companies || []).filter((c) => !c.example);
+  if (!own.length) return null;
+  const t = (s) => { const d = s ? new Date(s) : null; return d && !isNaN(d) ? d.getTime() : NaN; };
+  if (t(snoozeUntil) > now.getTime()) return null;
+  const changes = own.map((c) => t(c.updatedAt)).filter((x) => !isNaN(x));
+  const latest = changes.length ? Math.max(...changes) : NaN;
+  const last = t(lastBackupAt);
+  if (!isNaN(last) && !isNaN(latest) && latest <= last) return null;
+  let ref = last;
+  if (isNaN(ref)) {
+    const firsts = own.flatMap((c) => [t(c.updatedAt), ...(c.history || []).map((h) => t(h.at))]).filter((x) => !isNaN(x));
+    ref = firsts.length ? Math.min(...firsts) : NaN;
+  }
+  if (isNaN(ref)) return null;
+  const days = Math.floor((now.getTime() - ref) / 86400000);
+  return days >= afterDays ? { never: isNaN(last), days } : null;
+}

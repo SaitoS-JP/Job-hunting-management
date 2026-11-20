@@ -1,5 +1,5 @@
 /* Scheduled events per company (deadlines, interviews). Pure. */
-import { parseDate, dayDiff } from "./dates.js";
+import { parseDate, isPast } from "./dates.js";
 
 export const EVENT_LABELS = Object.freeze(["ES提出", "ES締切", "適性検査", "Webテスト締切", "説明会", "GD", "一次面接", "二次面接", "最終面接", "内定承諾期限"]);
 export const MAX_EVENTS = 50;
@@ -39,7 +39,7 @@ export const pendingEvents = (c) => (c.events || []).filter((e) => !e.done && pa
 export function nearestEvent(c, now = new Date()) {
   const pend = pendingEvents(c).map((e) => ({ e, d: parseDate(e.at) })).sort((a, b) => a.d - b.d);
   if (!pend.length) return null;
-  const up = pend.find((x) => dayDiff(x.d, now) >= 0);
+  const up = pend.find((x) => !isPast(x.d, now));
   const pick = up || pend[pend.length - 1];
   return { event: pick.e, overdue: !up, more: pend.length - 1 };
 }
@@ -59,7 +59,7 @@ export function agenda(companies, { now = new Date(), limit = 5, overdueLimit = 
     if (!include(c)) continue;
     for (const e of pendingEvents(c)) {
       const d = parseDate(e.at);
-      (dayDiff(d, now) >= 0 ? up : over).push({ company: c, event: e, date: d });
+      (isPast(d, now) ? over : up).push({ company: c, event: e, date: d });
     }
   }
   up.sort((a, b) => a.date - b.date);

@@ -9,7 +9,7 @@ const unfold = (ics) => ics.replace(/\r\n /g, "").split("\r\n");
 const co = (over = {}) => normalize({ id: "c1", name: "テスト商事", kind: "サマーインターン", position: "総合職", stage: "es", url: "https://example.com/my?a=1,b=2", ...over });
 
 test("TEXT escaping of backslash, semicolon, comma and newlines", () => {
-  assert.equal(escapeText("a\\b;c,d\ne\r\nf"), "a\\\\b\;c\\,d\\ne\\nf");
+  assert.equal(escapeText("a\\b;c,d\ne\r\nf"), "a\\\\b\\;c\\,d\\ne\\nf");
 });
 test("folding at 75 octets keeps UTF-8 characters whole", () => {
   const line = "SUMMARY:" + "あ".repeat(60);
@@ -65,4 +65,22 @@ test("stable UID and selection of not-done events of active companies", () => {
   const a = buildICS(selectForExport([c], { now: NOW }), { now: NOW });
   const b = buildICS(selectForExport([c], { now: NOW }), { now: new Date() });
   assert.equal(a.match(/UID:.*/)[0], b.match(/UID:.*/)[0]);
+});
+
+test("semicolons, commas and backslashes are escaped in the written file", () => {
+  assert.equal(escapeText("A;B"), "A\\;B");
+  assert.equal(escapeText("A;B").length, 4);
+  const c = { id: "c1", name: "株式会社A;B,C", position: "総合職", kind: "本選考", stage: "entry", stages: [{ id: "entry", label: "エントリー" }], url: "", events: [{ id: "e1", at: new Date(2026, 11, 1, 10).toISOString(), label: "一次;面接", done: false }] };
+  const ics = buildICS([{ company: c, event: c.events[0] }], { reminders: [], now: new Date(2026, 10, 20) });
+  const summary = ics.split("\r\n").find((l) => l.startsWith("SUMMARY:"));
+  assert.ok(summary.includes("株式会社A\\;B\\,C"), summary);
+  assert.ok(summary.includes("一次\\;面接"), summary);
+});
+test("export of upcoming events drops a deadline that passed earlier today", () => {
+  const c = { id: "c1", name: "A", stage: "entry", events: [
+    { id: "am", at: new Date(2026, 10, 20, 10).toISOString(), label: "", done: false },
+    { id: "pm", at: new Date(2026, 10, 20, 18).toISOString(), label: "", done: false },
+  ] };
+  const out = selectForExport([c], { range: "future", now: new Date(2026, 10, 20, 15) });
+  assert.deepEqual(out.map((x) => x.event.id), ["pm"]);
 });
