@@ -31,6 +31,7 @@
     <div class="top-actions">
       <button type="button" class="btn ghost" id="btn-del-samples" hidden>サンプルを削除</button>
       <button type="button" class="btn" id="btn-backup" aria-expanded="false" aria-controls="backup-panel">バックアップ</button>
+      <button type="button" class="btn" id="btn-tpl" aria-expanded="false" aria-controls="tpl-panel">段階テンプレート</button>
       <button type="button" class="btn primary" id="btn-add">＋ 企業を追加</button>
     </div>
   </header>
@@ -58,6 +59,20 @@
         <button type="button" class="btn ghost" id="btn-import-cancel">キャンセル</button>
       </div>
       <p class="hint" style="margin-top:8px">「追加」は今のデータを残したまま加えます。「置き換え」は今のデータをすべて消してから読み込みます（元に戻せません）。</p>
+    </div>
+  </section>
+
+  <section class="panel" id="tpl-panel" aria-labelledby="tpl-h" hidden>
+    <h2 id="tpl-h">選考段階のテンプレート</h2>
+    <p>新しく追加する企業は、この段階の並びで始まります。テンプレートを変えても、登録済みの企業の段階は変わりません（各企業の編集画面の「この企業の選考段階を編集」から個別に変えられます）。</p>
+    <div id="tpl-editor"></div>
+    <p class="sed-msg" id="tpl-err" role="alert"></p>
+    <div class="sed-tools"><button type="button" class="btn small" id="btn-tpl-add">＋ 段階を末尾に追加</button></div>
+    <div class="row" style="margin-top:10px">
+      <button type="button" class="btn primary" id="btn-tpl-save">保存</button>
+      <button type="button" class="btn" id="btn-tpl-reset">初期状態に戻す</button>
+      <button type="button" class="btn ghost" id="btn-tpl-close">閉じる</button>
+      <span class="hint" id="tpl-msg" role="status"></span>
     </div>
   </section>
 
@@ -150,6 +165,16 @@
         <label for="c-stage">選考段階</label>
         <select class="select" id="c-stage" name="stage"></select>
         <div class="steps-scroll" id="dlg-steps"></div>
+        <button type="button" class="linkbtn" id="btn-cs-toggle" aria-expanded="false" aria-controls="cs-box">この企業の選考段階を編集</button>
+        <div class="cs-box" id="cs-box" hidden>
+          <p class="hint" style="margin:0">この企業だけの段階の並びです（例：三次面接を足す、Webテストを消す）。保存すると反映されます。</p>
+          <div id="cs-editor"></div>
+          <p class="sed-msg" id="cs-err" role="alert"></p>
+          <div class="sed-tools">
+            <button type="button" class="btn small" id="btn-cs-add">＋ 段階を末尾に追加</button>
+            <button type="button" class="btn small ghost" id="btn-cs-reload">テンプレートから読み込み直す</button>
+          </div>
+        </div>
       </div>
       <div class="fld full" id="icon-wrap">
         <span class="section-h" id="icon-h">アイコン</span>

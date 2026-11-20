@@ -1,38 +1,44 @@
 /* 就活ボード — standalone app. All data stays on this device (IndexedDB). */
 (() => {
   "use strict";
-  const STAGES = [
-    { k: "interest", l: "気になる" },
-    { k: "entry", l: "エントリー" },
-    { k: "es", l: "ES・書類選考" },
-    { k: "test", l: "適性検査・Webテスト" },
-    { k: "gd", l: "GD・一次面接" },
-    { k: "interview2", l: "二次面接" },
-    { k: "final", l: "最終面接" },
-    { k: "offer", l: "内定" },
+  /* Default stage list. The old fixed keys are kept as ids so records saved
+     before per-company stages existed keep working unchanged. */
+  const DEFAULT_STAGES = [
+    { id: "interest", label: "気になる" },
+    { id: "entry", label: "エントリー" },
+    { id: "es", label: "ES・書類選考" },
+    { id: "test", label: "適性検査・Webテスト" },
+    { id: "gd", label: "GD・一次面接" },
+    { id: "interview2", label: "二次面接" },
+    { id: "final", label: "最終面接" },
+    { id: "offer", label: "内定" },
   ];
-  const TERMS = [{ k: "rejected", l: "不合格" }, { k: "declined", l: "辞退" }];
-  const LABEL = {}; const IDX = {};
-  STAGES.forEach((s, i) => { LABEL[s.k] = s.l; IDX[s.k] = i; });
-  TERMS.forEach((s) => { LABEL[s.k] = s.l; });
-  const SHORT = ["気になる", "エントリー", "ES", "Webテスト", "一次", "二次", "最終", "内定"];
+  const DEFAULT_LABEL = Object.fromEntries(DEFAULT_STAGES.map((s) => [s.id, s.label]));
+  const TERM_LABEL = { rejected: "不合格", declined: "辞退" };
   const isTerm = (k) => k === "rejected" || k === "declined";
+  const PALETTE = ["interest", "entry", "es", "test", "gd", "interview2", "final"];
   const PRI = { 1: "第一志望群", 2: "第二志望群", 3: "第三志望群" };
   const WD = "日月火水木金土";
   const LS = { sort: "shukatsu.sort", iosHint: "shukatsu.iosHintDismissed" };
   const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+  const STAGE_ID_RE = /^[A-Za-z0-9_-]{1,32}$/;
+  const MAX_LABEL = 16;
+  const MAX_STAGES = 30;
+  const BACKUP_VERSION = 2;
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const sc = (k) => `--sc:var(--st-${k in LABEL ? k : "interest"})`;
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  const cloneStages = (a) => a.map((s) => ({ id: s.id, label: s.label }));
 
   const S = {
     mode: "loading", // loading | idb | memory
     docs: [], loaded: false,
+    template: cloneStages(DEFAULT_STAGES),
     q: "", pri: "all", scope: "all", sort: "next",
     editingId: null, busy: false,
+    draftStages: [], tplDraft: [],
     icon: { blob: null, url: "", removed: false },
     iconUrls: new Map(), // iconId -> objectURL
     pendingImport: null,
@@ -47,11 +53,12 @@
       return new Promise((resolve, reject) => {
         if (!("indexedDB" in window) || !window.indexedDB) return reject(new Error("no indexedDB"));
         let req;
-        try { req = indexedDB.open("shukatsu-board", 1); } catch (e) { return reject(e); }
+        try { req = indexedDB.open("shukatsu-board", 2); } catch (e) { return reject(e); }
         req.onupgradeneeded = () => {
           const d = req.result;
           if (!d.objectStoreNames.contains("companies")) d.createObjectStore("companies", { keyPath: "id" });
           if (!d.objectStoreNames.contains("icons")) d.createObjectStore("icons");
+          if (!d.objectStoreNames.contains("settings")) d.createObjectStore("settings");
         };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
@@ -75,12 +82,12 @@
         try {
           db = await open();
           // probe a write so private modes that open-but-fail are caught early
-          await run(["icons"], "readwrite", (t) => t.objectStore("icons").put({ type: "x", data: new ArrayBuffer(0) }, "__probe"));
-          await run(["icons"], "readwrite", (t) => t.objectStore("icons").delete("__probe"));
+          await run(["settings"], "readwrite", (t) => t.objectStore("settings").put(1, "__probe"));
+          await run(["settings"], "readwrite", (t) => t.objectStore("settings").delete("__probe"));
           db.onversionchange = () => { try { db.close(); } catch (e) {} };
           return "idb";
         } catch (e) {
-          db = null; mem = { companies: new Map(), icons: new Map() };
+          db = null; mem = { companies: new Map(), icons: new Map(), settings: new Map() };
           return "memory";
         }
       },
@@ -95,6 +102,14 @@
       async del(id) {
         if (mem) { mem.companies.delete(id); return; }
         await run(["companies"], "readwrite", (t) => t.objectStore("companies").delete(id));
+      },
+      async getSetting(key) {
+        if (mem) { const v = mem.settings.get(key); return v === undefined ? undefined : clone(v); }
+        return run(["settings"], "readonly", (t) => t.objectStore("settings").get(key));
+      },
+      async putSetting(key, value) {
+        if (mem) { mem.settings.set(key, clone(value)); return; }
+        await run(["settings"], "readwrite", (t) => t.objectStore("settings").put(value, key));
       },
       async getIcon(id) {
         const v = mem ? mem.icons.get(id) : await run(["icons"], "readonly", (t) => t.objectStore("icons").get(id));
@@ -149,50 +164,105 @@
     return `<span class="due">あと<span class="num">${n}</span>日</span>`;
   }
 
-  /* ================= data ================= */
-  function normalize(d, idOverride) {
-    d = d && typeof d === "object" ? d : {};
-    const stage = typeof d.stage === "string" && d.stage in LABEL ? d.stage : "interest";
-    const pr = Number(d.priority);
-    const str = (v, max) => (typeof v === "string" ? v.slice(0, max) : "");
-    const id = idOverride || (typeof d.id === "string" && ID_RE.test(d.id) ? d.id : newId("c"));
-    return {
-      id,
-      name: str(d.name, 80),
-      position: str(d.position, 80),
-      industry: str(d.industry, 40),
-      stage,
-      priority: pr === 1 || pr === 2 || pr === 3 ? pr : 2,
-      nextDate: typeof d.nextDate === "string" && parseDate(d.nextDate) ? d.nextDate : "",
-      nextLabel: str(d.nextLabel, 40),
-      url: typeof d.url === "string" && /^https?:\/\//i.test(d.url) ? d.url.slice(0, 2000) : "",
-      memo: str(d.memo, 4000),
-      history: Array.isArray(d.history)
-        ? d.history.filter((h) => h && typeof h === "object" && typeof h.stage === "string" && h.stage in LABEL)
-            .map((h) => ({ stage: h.stage, at: typeof h.at === "string" ? h.at : "" })).slice(-200)
-        : [],
-      updatedAt: typeof d.updatedAt === "string" ? d.updatedAt : "",
-      example: d.example === true,
-      iconId: typeof d.iconId === "string" && ID_RE.test(d.iconId) ? d.iconId : "",
-    };
-  }
+  /* ================= stages ================= */
   function newId(prefix) {
     const a = new Uint8Array(12);
     if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(a); else a.forEach((_, i) => (a[i] = Math.random() * 256));
     return prefix + Array.from(a, (b) => b.toString(36).padStart(2, "0")).join("").slice(0, 20);
   }
-  function reached(c) {
-    if (!isTerm(c.stage)) return IDX[c.stage];
-    let best = -1;
-    for (const h of c.history) if (h.stage in IDX && IDX[h.stage] > best) best = IDX[h.stage];
-    return best;
+  const stageId = () => newId("s").slice(0, 9);
+  /* Validate a stage list; returns null when nothing usable remains. */
+  function cleanStages(arr) {
+    if (!Array.isArray(arr)) return null;
+    const seen = new Set(); const out = [];
+    for (const s of arr) {
+      if (!s || typeof s !== "object") continue;
+      const label = typeof s.label === "string" ? s.label.trim().slice(0, MAX_LABEL) : "";
+      if (!label) continue;
+      let id = typeof s.id === "string" && STAGE_ID_RE.test(s.id) && !isTerm(s.id) ? s.id : stageId();
+      while (seen.has(id)) id = stageId();
+      seen.add(id); out.push({ id, label });
+      if (out.length >= MAX_STAGES) break;
+    }
+    return out.length ? out : null;
+  }
+  function labelIn(stages, id) {
+    const s = stages.find((x) => x.id === id);
+    if (s) return s.label;
+    return TERM_LABEL[id] || DEFAULT_LABEL[id] || String(id || "");
+  }
+  /* Position colours from the stage palette; the last stage keeps the offer green. */
+  function colorAt(i, n) {
+    if (i < 0) return "var(--st-interest)";
+    if (i === n - 1) return "var(--st-offer)";
+    return `var(--st-${PALETTE[i % PALETTE.length]})`;
+  }
+  const termColor = (k) => (k === "rejected" ? "var(--st-rejected)" : "var(--st-declined)");
+  /* Index reached in `stages`: the current stage, or for an ended company the
+     most recent non-terminal history entry that still exists in the list. */
+  function reachedFrom(stages, stage, history) {
+    if (!isTerm(stage)) return stages.findIndex((s) => s.id === stage);
+    for (let i = history.length - 1; i >= 0; i--) {
+      const h = history[i];
+      if (isTerm(h.stage)) continue;
+      const k = stages.findIndex((s) => s.id === h.stage);
+      if (k >= 0) return k;
+    }
+    return -1;
+  }
+  const reached = (c) => reachedFrom(c.stages, c.stage, c.history);
+  const stageIndex = (c) => (isTerm(c.stage) ? -1 : c.stages.findIndex((s) => s.id === c.stage));
+  const atLast = (c) => !isTerm(c.stage) && stageIndex(c) === c.stages.length - 1;
+  const stageLabel = (c) => labelIn(c.stages, c.stage);
+  const stageColor = (c) => (isTerm(c.stage) ? termColor(c.stage) : colorAt(stageIndex(c), c.stages.length));
+  function progressRatio(c) {
+    if (c.stage === "rejected") return -1;
+    if (c.stage === "declined") return -2;
+    const n = c.stages.length;
+    return n > 1 ? stageIndex(c) / (n - 1) : 1;
+  }
+
+  /* ================= data ================= */
+  function normalize(d, idOverride) {
+    d = d && typeof d === "object" ? d : {};
+    const str = (v, max) => (typeof v === "string" ? v.slice(0, max) : "");
+    const id = idOverride || (typeof d.id === "string" && ID_RE.test(d.id) ? d.id : newId("c"));
+    // migration: records without their own stage list get the default 8 (old keys)
+    const stages = cleanStages(d.stages) || cloneStages(DEFAULT_STAGES);
+    let stage = typeof d.stage === "string" ? d.stage : "";
+    if (!isTerm(stage) && !stages.some((s) => s.id === stage)) stage = stages[0].id;
+    const pr = Number(d.priority);
+    const history = Array.isArray(d.history)
+      ? d.history.filter((h) => h && typeof h === "object" && typeof h.stage === "string" && h.stage)
+          .map((h) => ({
+            stage: h.stage.slice(0, 32),
+            at: typeof h.at === "string" ? h.at : "",
+            label: typeof h.label === "string" && h.label.trim() ? h.label.trim().slice(0, MAX_LABEL) : labelIn(stages, h.stage),
+          })).slice(-200)
+      : [];
+    return {
+      id,
+      name: str(d.name, 80),
+      position: str(d.position, 80),
+      industry: str(d.industry, 40),
+      stages, stage,
+      priority: pr === 1 || pr === 2 || pr === 3 ? pr : 2,
+      nextDate: typeof d.nextDate === "string" && parseDate(d.nextDate) ? d.nextDate : "",
+      nextLabel: str(d.nextLabel, 40),
+      url: typeof d.url === "string" && /^https?:\/\//i.test(d.url) ? d.url.slice(0, 2000) : "",
+      memo: str(d.memo, 4000),
+      history,
+      updatedAt: typeof d.updatedAt === "string" ? d.updatedAt : "",
+      example: d.example === true,
+      iconId: typeof d.iconId === "string" && ID_RE.test(d.iconId) ? d.iconId : "",
+    };
   }
   const byId = (id) => S.docs.find((c) => c.id === id);
   function filtered() {
     const q = S.q.trim().toLowerCase();
     return S.docs.filter((c) => {
       if (S.pri !== "all" && String(c.priority) !== S.pri) return false;
-      if (S.scope === "active" && (isTerm(c.stage) || c.stage === "offer")) return false;
+      if (S.scope === "active" && (isTerm(c.stage) || atLast(c))) return false;
       if (q && !(`${c.name} ${c.position} ${c.industry}`.toLowerCase().includes(q))) return false;
       return true;
     });
@@ -202,6 +272,8 @@
 
   async function reload() {
     try {
+      const t = await Store.getSetting("template").catch(() => undefined);
+      S.template = cleanStages(t && t.stages) || cloneStages(DEFAULT_STAGES);
       const rows = await Store.all();
       S.docs = rows.map((r) => normalize(r, r.id));
       S.loaded = true;
@@ -230,7 +302,7 @@
   async function changeStage(c, stage) {
     if (!c || c.stage === stage) return;
     const now = new Date().toISOString();
-    const rec = { ...c, stage, history: [...c.history, { stage, at: now }], updatedAt: now };
+    const rec = { ...c, stage, history: [...c.history, { stage, at: now, label: labelIn(c.stages, stage) }], updatedAt: now };
     try { await saveRecord(rec); await reload(); } catch (e) { showErr(errText(e)); }
   }
 
@@ -264,18 +336,20 @@
   }
 
   /* ================= stepper ================= */
-  function stepsHTML(stage, r, large) {
+  function stepsHTML(stages, stage, r, large) {
+    const n = stages.length;
     const term = isTerm(stage);
     const kcls = stage === "rejected" ? "rej" : stage === "declined" ? "dec" : "";
-    const items = STAGES.map((s, i) => {
+    const items = stages.map((s, i) => {
       const cls = i < r ? "on" : i === r ? "cur" : "";
-      let txt = SHORT[i];
+      let txt = s.label;
       if (i === r && stage === "rejected") txt = "✕ " + txt;
       if (i === r && stage === "declined") txt = "辞退";
-      return `<li class="${cls}"${i === r ? ' aria-current="step"' : ""} title="${esc(s.l)}">${esc(txt)}</li>`;
+      return `<li class="${cls}"${i === r ? ' aria-current="step"' : ""} title="${esc(s.label)}"><span>${esc(txt)}</span></li>`;
     }).join("");
-    const label = term ? `${LABEL[stage]}${r >= 0 ? `（${STAGES[r].l}で終了）` : ""}` : `${LABEL[stage]}（${r + 1}/${STAGES.length}）`;
-    return `<ol class="steps${large ? " lg" : ""} ${kcls}" style="${sc(stage)}" aria-label="選考の進み具合：${esc(label)}">${items}</ol>`;
+    const label = term ? `${TERM_LABEL[stage]}${r >= 0 ? `（${stages[r].label}で終了）` : ""}` : `${r >= 0 ? stages[r].label : ""}（${r + 1}/${n}）`;
+    const col = term ? termColor(stage) : colorAt(r, n);
+    return `<ol class="steps${large ? " lg" : ""} ${kcls}" style="--sc:${col};min-width:${n * (large ? 72 : 64)}px" aria-label="選考の進み具合：${esc(label)}">${items}</ol>`;
   }
 
   /* ================= render ================= */
@@ -292,22 +366,34 @@
   function progHTML(c) {
     const term = isTerm(c.stage);
     const r = reached(c);
-    const reach = term && r >= 0 ? `<span class="reach">${esc(STAGES[r].l)}で終了</span>` : "";
-    return `<div class="prog" style="${sc(c.stage)}"><span class="tag">${LABEL[c.stage]}${reach}</span><div class="steps-scroll">${stepsHTML(c.stage, r, false)}</div></div>`;
+    const reach = term && r >= 0 ? `<span class="reach">${esc(c.stages[r].label)}で終了</span>` : "";
+    return `<div class="prog" style="--sc:${stageColor(c)}"><span class="tag">${esc(stageLabel(c))}${reach}</span><div class="steps-scroll">${stepsHTML(c.stages, c.stage, r, false)}</div></div>`;
   }
   function sortList(list) {
     const a = list.slice();
-    const stageRank = (c) => (isTerm(c.stage) ? -1 - (c.stage === "declined" ? 1 : 0) : IDX[c.stage]);
     if (S.sort === "next") a.sort((x, y) => (isTerm(x.stage) - isTerm(y.stage)) || cmpCard(x, y));
     else if (S.sort === "priority") a.sort((x, y) => x.priority - y.priority || (isTerm(x.stage) - isTerm(y.stage)) || cmpCard(x, y));
-    else if (S.sort === "stage") a.sort((x, y) => stageRank(y) - stageRank(x) || cmpCard(x, y));
+    else if (S.sort === "stage") a.sort((x, y) => progressRatio(y) - progressRatio(x) || cmpCard(x, y));
     else a.sort((x, y) => (y.updatedAt || "").localeCompare(x.updatedAt || ""));
     return a;
   }
+  function actsHTML(c) {
+    const id = esc(c.id);
+    if (isTerm(c.stage)) {
+      const r = reached(c);
+      const to = c.stages[r >= 0 ? r : 0];
+      return `<button type="button" class="qa adv" data-act="restore" data-id="${id}" title="${esc(to.label)}に戻します">選考中に戻す</button>
+        <button type="button" class="qa" data-act="edit" data-id="${id}">編集</button>`;
+    }
+    const i = stageIndex(c);
+    const prev = c.stages[i - 1], next = c.stages[i + 1];
+    return `${prev ? `<button type="button" class="qa" data-act="back" data-id="${id}" title="${esc(prev.label)}に戻します">← 戻る</button>` : ""}
+      ${next ? `<button type="button" class="qa adv" data-act="advance" data-id="${id}" title="${esc(next.label)}へ">次へ →</button>` : ""}
+      <button type="button" class="qa" data-act="rejected" data-id="${id}">不合格</button>
+      <button type="button" class="qa" data-act="declined" data-id="${id}">辞退</button>`;
+  }
   function listHTML(list) {
     const rows = sortList(list).map((c) => {
-      const term = isTerm(c.stage);
-      const nxt = term ? null : STAGES[IDX[c.stage] + 1];
       const u = parseDate(c.updatedAt);
       const id = esc(c.id);
       return `<div class="lrow" role="row">
@@ -317,10 +403,7 @@
         <div role="cell" class="pricell">${priHTML(c.priority)}</div>
         <div role="cell">${nextHTML(c, "next") || `<span class="hint">—</span>`}</div>
         <div role="cell" class="upd">${u ? fmtShort(u) : "—"}</div>
-        <div role="cell" class="acts">${term ? `<button type="button" class="qa" data-act="edit" data-id="${id}">編集</button>` :
-          `${nxt ? `<button type="button" class="qa adv" data-act="advance" data-id="${id}" title="${esc(nxt.l)}へ">次へ →</button>` : ""}
-           <button type="button" class="qa" data-act="rejected" data-id="${id}">不合格</button>
-           <button type="button" class="qa" data-act="declined" data-id="${id}">辞退</button>`}</div>
+        <div role="cell" class="acts">${actsHTML(c)}</div>
       </div>`;
     }).join("");
     return `<div class="list" role="table" aria-label="企業一覧">
@@ -328,11 +411,12 @@
       ${rows}</div>`;
   }
   function emptyHTML() {
-    const demo = STAGES.map((s) => `<span style="${sc(s.k)}">${s.l}</span>`).join("");
+    const n = S.template.length;
+    const demo = S.template.map((s, i) => `<span style="--sc:${colorAt(i, n)}">${esc(s.label)}</span>`).join("");
     if (!S.loaded) return `<div class="empty"><h2>読み込み中…</h2><p>この端末に保存された企業を読み込んでいます。</p></div>`;
     return `<div class="empty">
       <h2>応募した企業を、ひとつの一覧で</h2>
-      <p>企業ごとに職種・コース、いまの選考段階、次の予定（締切・面接日）を記録すると、進み具合が矢印で並び、近い予定から順に確認できます。データはこの端末の中だけに保存されます。</p>
+      <p>企業ごとに職種・コース、いまの選考段階、次の予定（締切・面接日）を記録すると、進み具合が矢印で並び、近い予定から順に確認できます。選考段階は企業ごとに変えられます。データはこの端末の中だけに保存されます。</p>
       <div class="pipe-demo" aria-label="選考段階の流れ">${demo}</div>
       <div class="row">
         <button type="button" class="btn primary" data-act="add">＋ 企業を追加</button>
@@ -343,18 +427,19 @@
   }
   function renderStats() {
     const all = S.docs;
-    const count = (k) => all.filter((c) => c.stage === k).length;
-    const active = all.filter((c) => !isTerm(c.stage) && c.stage !== "offer").length;
-    const rej = count("rejected"), dec = count("declined");
-    const bar = all.length ? [...STAGES, ...TERMS].map((s) => {
-      const n = count(s.k);
-      return n ? `<span style="width:${(n / all.length) * 100}%;background:var(--st-${s.k})" title="${s.l} ${n}"></span>` : "";
-    }).join("") : "";
+    const activeList = all.filter((c) => !isTerm(c.stage) && !atLast(c));
+    const active = activeList.length;
+    const withNext = activeList.filter((c) => parseDate(c.nextDate)).length;
+    const offer = all.filter(atLast).length;
+    const rej = all.filter((c) => c.stage === "rejected").length;
+    const dec = all.filter((c) => c.stage === "declined").length;
+    const segs = [["選考中", active, "var(--accent)"], ["内定", offer, "var(--st-offer)"], ["不合格", rej, "var(--st-rejected)"], ["辞退", dec, "var(--muted)"]];
+    const bar = all.length ? segs.map(([l, n, col]) => (n ? `<span style="width:${(n / all.length) * 100}%;background:${col}" title="${l} ${n}"></span>` : "")).join("") : "";
     $("stats").innerHTML = `
-      <div class="stat"><div class="k">選考中</div><div class="v">${active}</div><div class="d">うち気になる <span class="num">${count("interest")}</span></div></div>
-      <div class="stat offer"><div class="k">内定</div><div class="v">${count("offer")}</div><div class="d">全<span class="num">${all.length}</span>社中</div></div>
+      <div class="stat"><div class="k">選考中</div><div class="v">${active}</div><div class="d">うち予定あり <span class="num">${withNext}</span></div></div>
+      <div class="stat offer"><div class="k">内定</div><div class="v">${offer}</div><div class="d">全<span class="num">${all.length}</span>社中</div></div>
       <div class="stat"><div class="k">終了</div><div class="v">${rej + dec}</div><div class="d">不合格 <span class="num">${rej}</span>・辞退 <span class="num">${dec}</span></div></div>
-      <div class="stagebar" role="img" aria-label="段階ごとの内訳">${bar}</div>`;
+      <div class="stagebar" role="img" aria-label="選考中 ${active}・内定 ${offer}・不合格 ${rej}・辞退 ${dec}">${bar}</div>`;
   }
   function renderUpcoming() {
     const items = S.docs
@@ -369,7 +454,7 @@
       const d = parseDate(c.nextDate);
       return `<li><button type="button" class="up-item" data-act="edit" data-id="${esc(c.id)}">
         <span class="up-date">${esc(fmtDate(d))}</span>
-        <span class="up-what" style="display:flex;align-items:center;gap:7px">${iconHTML(c.name, c.iconId, 20)}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis"><b>${esc(c.name)}</b><span>${esc(c.nextLabel || LABEL[c.stage])}</span></span></span>
+        <span class="up-what" style="display:flex;align-items:center;gap:7px">${iconHTML(c.name, c.iconId, 20)}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis"><b>${esc(c.name)}</b><span>${esc(c.nextLabel || stageLabel(c))}</span></span></span>
         ${dueBadge(d)}</button></li>`;
     }).join("");
   }
@@ -391,36 +476,148 @@
       : `<div class="empty"><h2>条件に一致する企業はありません</h2><p>検索語や志望度・対象の絞り込みを変えてみてください。</p></div>`;
   }
 
+  /* ================= stage list editor (template + per company) ================= */
+  /* kind "tpl" edits S.tplDraft, kind "cs" edits S.draftStages. */
+  const ED = {
+    tpl: { list: () => S.tplDraft, set: (a) => { S.tplDraft = a; }, box: "tpl-editor", err: "tpl-err", changed: () => {} },
+    cs: { list: () => S.draftStages, set: (a) => { S.draftStages = a; }, box: "cs-editor", err: "cs-err", changed: () => updateDialogVisuals(true) },
+  };
+  function renderEditor(kind) {
+    const list = ED[kind].list();
+    const n = list.length;
+    $(ED[kind].box).innerHTML = `<ol class="sed" aria-label="選考段階の並び">${list.map((s, i) => `
+      <li class="sed-row">
+        <span class="sed-n num">${i + 1}</span>
+        <input class="input sed-in" id="${kind}-label-${esc(s.id)}" value="${esc(s.label)}" maxlength="${MAX_LABEL}" autocomplete="off" aria-label="${i + 1}番目の段階名" data-ed="${kind}" data-op="rename" data-i="${i}">
+        <button type="button" class="sed-b" id="${kind}-up-${esc(s.id)}" data-ed="${kind}" data-op="up" data-i="${i}" aria-label="${esc(s.label)}を上へ"${i === 0 ? " disabled" : ""}>↑</button>
+        <button type="button" class="sed-b" id="${kind}-down-${esc(s.id)}" data-ed="${kind}" data-op="down" data-i="${i}" aria-label="${esc(s.label)}を下へ"${i === n - 1 ? " disabled" : ""}>↓</button>
+        <button type="button" class="sed-b" id="${kind}-ins-${esc(s.id)}" data-ed="${kind}" data-op="ins" data-i="${i}" aria-label="${esc(s.label)}の下に段階を追加" title="この下に追加"${n >= MAX_STAGES ? " disabled" : ""}>＋</button>
+        <button type="button" class="sed-b del" id="${kind}-del-${esc(s.id)}" data-ed="${kind}" data-op="del" data-i="${i}" aria-label="${esc(s.label)}を削除" title="削除"${n <= 1 ? " disabled" : ""}>✕</button>
+      </li>`).join("")}</ol>`;
+  }
+  function editorOp(kind, op, i, value) {
+    const ed = ED[kind];
+    const list = ed.list().slice();
+    const err = $(ed.err);
+    err.textContent = "";
+    if (op === "rename") { list[i] = { ...list[i], label: value }; ed.set(list); ed.changed(); return; }
+    let focusId = null;
+    if (op === "up" && i > 0) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; focusId = `${kind}-up-${list[i - 1].id}`; if (i - 1 === 0) focusId = `${kind}-down-${list[0].id}`; }
+    else if (op === "down" && i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; focusId = `${kind}-down-${list[i + 1].id}`; if (i + 1 === list.length - 1) focusId = `${kind}-up-${list[i + 1].id}`; }
+    else if (op === "ins" || op === "add") {
+      if (list.length >= MAX_STAGES) { err.textContent = `段階は${MAX_STAGES}個までです。`; return; }
+      const s = { id: stageId(), label: "新しい段階" };
+      list.splice(op === "add" ? list.length : i + 1, 0, s);
+      focusId = `${kind}-label-${s.id}`;
+    } else if (op === "del") {
+      if (list.length <= 1) { err.textContent = "段階は少なくとも1つ必要です。"; return; }
+      if (kind === "cs" && list[i].id === $("c-stage").value) {
+        err.textContent = `「${list[i].label}」はいまの段階なので削除できません。先に上の「選考段階」で別の段階を選んでから削除してください。`;
+        return;
+      }
+      list.splice(i, 1);
+      const near = list[Math.min(i, list.length - 1)];
+      focusId = `${kind}-del-${near.id}`;
+    } else return;
+    ed.set(list);
+    renderEditor(kind);
+    ed.changed();
+    if (focusId) { const el = $(focusId); if (el) { el.focus(); if (el.select && op !== "del") el.select(); } }
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-ed]");
+    if (!b || b.disabled) return;
+    editorOp(b.dataset.ed, b.dataset.op, Number(b.dataset.i));
+  });
+  document.addEventListener("input", (e) => {
+    const t = e.target;
+    if (t && t.matches && t.matches("input[data-ed]")) editorOp(t.dataset.ed, "rename", Number(t.dataset.i), t.value);
+  });
+  /* Returns cleaned list or an error message. */
+  function checkStages(list) {
+    if (!list.length) return { error: "段階は少なくとも1つ必要です。" };
+    const out = [];
+    for (const s of list) {
+      const label = String(s.label || "").trim();
+      if (!label) return { error: "段階名が空欄のところがあります。入力するか、その段階を削除してください。" };
+      if (label.length > MAX_LABEL) return { error: `段階名は${MAX_LABEL}文字までです。` };
+      out.push({ id: s.id, label });
+    }
+    return { stages: out };
+  }
+
+  /* template panel */
+  function openTemplatePanel(open) {
+    const p = $("tpl-panel");
+    p.hidden = !open;
+    $("btn-tpl").setAttribute("aria-expanded", String(open));
+    $("tpl-err").textContent = ""; $("tpl-msg").textContent = "";
+    if (open) { S.tplDraft = cloneStages(S.template); renderEditor("tpl"); p.scrollIntoView({ block: "nearest" }); }
+  }
+  $("btn-tpl").addEventListener("click", () => openTemplatePanel($("tpl-panel").hidden));
+  $("btn-tpl-close").addEventListener("click", () => { openTemplatePanel(false); $("btn-tpl").focus(); });
+  $("btn-tpl-add").addEventListener("click", () => editorOp("tpl", "add", 0));
+  $("btn-tpl-reset").addEventListener("click", () => {
+    S.tplDraft = cloneStages(DEFAULT_STAGES); renderEditor("tpl");
+    $("tpl-err").textContent = ""; $("tpl-msg").textContent = "初期状態の8段階に戻しました。「保存」で確定します。";
+  });
+  $("btn-tpl-save").addEventListener("click", async () => {
+    const r = checkStages(S.tplDraft);
+    if (r.error) { $("tpl-err").textContent = r.error; return; }
+    try {
+      await serial(() => Store.putSetting("template", { stages: r.stages }));
+      S.template = r.stages; S.tplDraft = cloneStages(r.stages);
+      renderEditor("tpl"); notifyOthers(); render();
+      $("tpl-msg").textContent = "保存しました。これから追加する企業に使われます。";
+    } catch (e) { $("tpl-err").textContent = errText(e); }
+  });
+
   /* ================= dialog ================= */
   const dlg = $("dlg");
-  $("c-stage").innerHTML =
-    `<optgroup label="選考段階">${STAGES.map((s) => `<option value="${s.k}">${s.l}</option>`).join("")}</optgroup>` +
-    `<optgroup label="終了">${TERMS.map((s) => `<option value="${s.k}">${s.l}</option>`).join("")}</optgroup>`;
   const ICON_HINT = "未設定のときは社名の頭文字を表示します。画像の貼り付けもできます。";
+  function rebuildStageSelect(value) {
+    const sel = $("c-stage");
+    sel.innerHTML =
+      `<optgroup label="選考段階">${S.draftStages.map((s) => `<option value="${esc(s.id)}">${esc(String(s.label).trim() || "（名前なし）")}</option>`).join("")}</optgroup>` +
+      `<optgroup label="終了">${Object.entries(TERM_LABEL).map(([k, l]) => `<option value="${k}">${l}</option>`).join("")}</optgroup>`;
+    const ok = isTerm(value) || S.draftStages.some((s) => s.id === value);
+    sel.value = ok ? value : S.draftStages[0].id;
+  }
+  function setStageEditorOpen(open) {
+    $("cs-box").hidden = !open;
+    $("btn-cs-toggle").setAttribute("aria-expanded", String(open));
+    $("btn-cs-toggle").textContent = open ? "選考段階の編集を閉じる" : "この企業の選考段階を編集";
+    if (open) renderEditor("cs");
+  }
 
   function openDialog(id) {
     const c = id ? byId(id) : null;
     S.editingId = c ? c.id : null;
+    S.draftStages = cloneStages(c ? c.stages : S.template);
     $("dlg-title").textContent = c ? "企業を編集" : "企業を追加";
     $("c-name").value = c ? c.name : "";
     $("c-position").value = c ? c.position : "";
     $("c-industry").value = c ? c.industry : "";
     $("c-priority").value = String(c ? c.priority : 2);
-    $("c-stage").value = c ? c.stage : "entry";
+    const def = S.draftStages.find((s) => s.id === "entry") || S.draftStages[0];
+    rebuildStageSelect(c ? c.stage : def.id);
     const d = c ? parseDate(c.nextDate) : null;
     $("c-next-date").value = d ? `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` : "";
     $("c-next-time").value = d && hasTime(d) ? `${p2(d.getHours())}:${p2(d.getMinutes())}` : "";
     $("c-next-label").value = c ? c.nextLabel : "";
     $("c-url").value = c ? c.url : "";
     $("c-memo").value = c ? c.memo : "";
-    $("form-err").textContent = "";
+    $("form-err").textContent = ""; $("cs-err").textContent = "";
     $("del-confirm").hidden = true;
     $("btn-delete").hidden = !c;
+    setStageEditorOpen(false);
     const hist = c ? c.history.slice().sort((a, b) => String(b.at).localeCompare(String(a.at))) : [];
     $("hist-wrap").hidden = !hist.length;
     $("hist").innerHTML = hist.map((h) => {
       const t = parseDate(h.at);
-      return `<li style="${sc(h.stage)}"><span class="num">${t ? esc(fmtFull(t)) : "—"}</span><span>${esc(LABEL[h.stage] || h.stage)}</span></li>`;
+      const k = c.stages.findIndex((s) => s.id === h.stage);
+      const col = isTerm(h.stage) ? termColor(h.stage) : colorAt(k, c.stages.length);
+      return `<li style="--sc:${col}"><span class="num">${t ? esc(fmtFull(t)) : "—"}</span><span>${esc(h.label || labelIn(c.stages, h.stage))}</span></li>`;
     }).join("");
     resetIcon();
     $("icon-hint").textContent = ICON_HINT;
@@ -436,27 +633,40 @@
   }
   $("c-url").addEventListener("input", updateUrlLink);
 
-  function dialogReached(stage) {
-    if (!isTerm(stage)) return IDX[stage];
-    const c = S.editingId ? byId(S.editingId) : null;
-    if (c) { const r = isTerm(c.stage) ? reached(c) : IDX[c.stage]; if (r >= 0) return r; }
-    return -1;
-  }
   function currentIconSrc() {
     if (S.icon.url) return { id: "", url: S.icon.url };
     const c = S.editingId ? byId(S.editingId) : null;
     if (!S.icon.removed && c && c.iconId) return { id: c.iconId, url: "" };
     return { id: "", url: "" };
   }
-  function updateDialogVisuals() {
+  function updateDialogVisuals(stagesChanged) {
+    if (stagesChanged) rebuildStageSelect($("c-stage").value);
     const stage = $("c-stage").value;
-    $("dlg-steps").innerHTML = stepsHTML(stage, dialogReached(stage), true);
+    const c = S.editingId ? byId(S.editingId) : null;
+    const r = reachedFrom(S.draftStages, stage, c ? c.history : []);
+    $("dlg-steps").innerHTML = stepsHTML(S.draftStages.map((s) => ({ id: s.id, label: String(s.label).trim() || "…" })), stage, r, true);
     const name = $("c-name").value || "";
     const src = currentIconSrc();
     $("dlg-icon").innerHTML = iconHTML(name, src.id, 48, src.url);
     $("icon-preview").innerHTML = iconHTML(name, src.id, 40, src.url);
     $("btn-icon-remove").hidden = !(src.url || src.id);
   }
+  $("btn-cs-toggle").addEventListener("click", () => setStageEditorOpen($("cs-box").hidden));
+  $("btn-cs-add").addEventListener("click", () => editorOp("cs", "add", 0));
+  $("btn-cs-reload").addEventListener("click", () => {
+    const sel = $("c-stage").value;
+    const oldLabel = labelIn(S.draftStages, sel);
+    S.draftStages = cloneStages(S.template);
+    let note = "テンプレートの段階を読み込みました。保存すると反映されます。";
+    if (!isTerm(sel) && !S.draftStages.some((s) => s.id === sel)) {
+      const same = S.draftStages.find((s) => s.label === oldLabel) || S.draftStages[0];
+      rebuildStageSelect(same.id);
+      if (same.label !== oldLabel) note = `いまの段階「${oldLabel}」はテンプレートにないため「${same.label}」にしました。確認してから保存してください。`;
+    } else rebuildStageSelect(sel);
+    renderEditor("cs");
+    updateDialogVisuals(false);
+    $("cs-err").textContent = note;
+  });
   function resetIcon() {
     if (S.icon.url) { try { URL.revokeObjectURL(S.icon.url); } catch (e) {} }
     S.icon = { blob: null, url: "", removed: false };
@@ -464,7 +674,7 @@
   }
   function canvasToBlob(cv, type, q) { return new Promise((r) => { try { cv.toBlob(r, type, q); } catch (e) { r(null); } }); }
   async function squareImage(src) {
-    const url = typeof src === "string" ? src : URL.createObjectURL(src);
+    const url = URL.createObjectURL(src);
     try {
       const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
       const w = img.naturalWidth || 128, h = img.naturalHeight || 128, side = Math.min(w, h);
@@ -476,7 +686,7 @@
       if (!blob || blob.type !== "image/webp") blob = await canvasToBlob(cv, "image/png");
       if (!blob) throw new Error("encode");
       return blob;
-    } finally { if (typeof src !== "string") URL.revokeObjectURL(url); }
+    } finally { URL.revokeObjectURL(url); }
   }
   async function pickIcon(file) {
     if (!file || !/^image\//.test(file.type)) return;
@@ -501,8 +711,8 @@
       if (it.kind === "file" && /^image\//.test(it.type)) { const f = it.getAsFile(); if (f) { e.preventDefault(); pickIcon(f); } return; }
     }
   });
-  $("c-name").addEventListener("input", updateDialogVisuals);
-  $("c-stage").addEventListener("change", updateDialogVisuals);
+  $("c-name").addEventListener("input", () => updateDialogVisuals());
+  $("c-stage").addEventListener("change", () => { $("cs-err").textContent = ""; updateDialogVisuals(); });
 
   $("form-company").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -511,18 +721,22 @@
     if (!name) { $("form-err").textContent = "社名を入力してください。"; $("c-name").focus(); return; }
     const url = $("c-url").value.trim();
     if (url && !/^https?:\/\//i.test(url)) { $("form-err").textContent = "マイページURLは http:// または https:// から始めてください。"; $("c-url").focus(); return; }
+    const chk = checkStages(S.draftStages);
+    if (chk.error) { setStageEditorOpen(true); $("cs-err").textContent = chk.error; $("form-err").textContent = "選考段階の編集欄を確認してください。"; return; }
+    const stages = chk.stages;
+    const stage = $("c-stage").value;
+    if (!isTerm(stage) && !stages.some((s) => s.id === stage)) { $("form-err").textContent = "選考段階を選び直してください。"; return; }
     let nextDate = "";
     const dv = $("c-next-date").value, tv = $("c-next-time").value;
     if (dv) { const dt = new Date(`${dv}T${tv || "00:00"}`); if (!isNaN(dt)) nextDate = dt.toISOString(); }
     const now = new Date().toISOString();
     const old = S.editingId ? byId(S.editingId) : null;
-    const stage = $("c-stage").value;
     const history = old ? old.history.slice() : [];
-    if (!old || old.stage !== stage) history.push({ stage, at: now });
+    if (!old || old.stage !== stage) history.push({ stage, at: now, label: labelIn(stages, stage) });
     const rec = {
       id: old ? old.id : newId("c"),
       name, position: $("c-position").value.trim(), industry: $("c-industry").value.trim(),
-      stage, priority: Number($("c-priority").value) || 2,
+      stages, stage, priority: Number($("c-priority").value) || 2,
       nextDate, nextLabel: $("c-next-label").value.trim(),
       url, memo: $("c-memo").value, history, updatedAt: now, example: old ? old.example : false,
       iconId: old && !S.icon.removed ? old.iconId : "",
@@ -558,21 +772,31 @@
   async function insertSamples() {
     const day = (n, h = 0, m = 0) => { const d = new Date(); d.setHours(h, m, 0, 0); d.setDate(d.getDate() + n); return d.toISOString(); };
     const ago = (n) => day(-n, 12);
+    const tpl = S.template;
+    const at = (i) => tpl[Math.min(i, tpl.length - 1)].id;
+    // one sample shows a company-specific list (三次面接 added, Webテスト removed)
+    const custom = [
+      { id: stageId(), label: "気になる" }, { id: stageId(), label: "エントリー" }, { id: stageId(), label: "ES・書類選考" },
+      { id: stageId(), label: "一次面接" }, { id: stageId(), label: "二次面接" }, { id: stageId(), label: "三次面接" },
+      { id: stageId(), label: "最終面接" }, { id: stageId(), label: "内定" },
+    ];
     const rows = [
-      { name: "サンプル商事", position: "総合職（事務系）", industry: "商社", stage: "gd", priority: 1, nextDate: day(2, 14), nextLabel: "一次面接", hist: ["entry", "es", "test", "gd"] },
-      { name: "架空テック", position: "エンジニア職", industry: "IT・通信", stage: "es", priority: 1, nextDate: day(0, 23, 59), nextLabel: "ES締切", hist: ["entry", "es"] },
-      { name: "みどり食品（例）", position: "研究開発コース", industry: "食品", stage: "test", priority: 2, nextDate: day(5), nextLabel: "Webテスト締切", hist: ["entry", "es", "test"] },
-      { name: "ほしぞら銀行（例）", position: "オープンコース", industry: "金融", stage: "final", priority: 2, nextDate: day(9, 10), nextLabel: "最終面接", hist: ["entry", "es", "gd", "interview2", "final"] },
-      { name: "あおば出版（例）", position: "編集職", industry: "出版", stage: "rejected", priority: 3, nextDate: "", nextLabel: "", hist: ["entry", "es", "gd", "rejected"] },
-      { name: "サンプル物流", position: "総合職", industry: "物流", stage: "interest", priority: 3, nextDate: day(12, 13), nextLabel: "説明会", hist: ["interest"] },
+      { name: "サンプル商事", position: "総合職（事務系）", industry: "商社", stage: at(4), priority: 1, nextDate: day(2, 14), nextLabel: "一次面接", hist: [1, 2, 3, 4].map(at) },
+      { name: "架空テック", position: "エンジニア職", industry: "IT・通信", stage: at(2), priority: 1, nextDate: day(0, 23, 59), nextLabel: "ES締切", hist: [1, 2].map(at) },
+      { name: "みどり食品（例）", position: "研究開発コース", industry: "食品", stage: at(3), priority: 2, nextDate: day(5), nextLabel: "Webテスト締切", hist: [1, 2, 3].map(at) },
+      { name: "ほしぞら銀行（例）", position: "オープンコース", industry: "金融", stages: custom, stage: custom[5].id, priority: 2, nextDate: day(9, 10), nextLabel: "三次面接", hist: [1, 2, 3, 4, 5].map((i) => custom[i].id) },
+      { name: "あおば出版（例）", position: "編集職", industry: "出版", stage: "rejected", priority: 3, nextDate: "", nextLabel: "", hist: [...[1, 2, 4].map(at), "rejected"] },
+      { name: "サンプル物流", position: "総合職", industry: "物流", stage: at(0), priority: 3, nextDate: day(12, 13), nextLabel: "説明会", hist: [at(0)] },
     ];
     try {
       for (const r of rows) {
+        const stages = cloneStages(r.stages || tpl);
         const n = r.hist.length;
         const rec = normalize({
-          name: r.name, position: r.position, industry: r.industry, stage: r.stage, priority: r.priority,
+          name: r.name, position: r.position, industry: r.industry, stages, stage: r.stage, priority: r.priority,
           nextDate: r.nextDate, nextLabel: r.nextLabel, url: "", memo: "これはサンプルです。自由に編集・削除できます。",
-          history: r.hist.map((s, i) => ({ stage: s, at: ago((n - i) * 6) })), updatedAt: new Date().toISOString(), example: true,
+          history: r.hist.map((s, i) => ({ stage: s, at: ago((n - i) * 6), label: labelIn(stages, s) })),
+          updatedAt: new Date().toISOString(), example: true,
         });
         await saveRecord(rec);
       }
@@ -593,14 +817,14 @@
   async function exportBackup() {
     const msg = $("backup-msg");
     try {
-      const companies = await Store.all();
+      const companies = (await Store.all()).map((r) => normalize(r, r.id));
       const icons = {};
       for (const c of companies) {
         if (!c.iconId) continue;
         const b = await Store.getIcon(c.iconId).catch(() => null);
         if (b) icons[c.iconId] = await blobToDataURL(b);
       }
-      const payload = { app: "shukatsu-board", version: 1, exportedAt: new Date().toISOString(), companies, icons };
+      const payload = { app: "shukatsu-board", version: BACKUP_VERSION, exportedAt: new Date().toISOString(), template: { stages: S.template }, companies, icons };
       const blob = new Blob([JSON.stringify(payload, null, 1)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -619,13 +843,15 @@
     if (!data || typeof data !== "object" || data.app !== "shukatsu-board" || !Array.isArray(data.companies)) {
       msg.textContent = "就活ボードのバックアップファイルではないようです。"; return;
     }
+    // old (version 1) backups have no stages: normalize() applies the same migration
     const companies = data.companies.filter((c) => c && typeof c === "object" && typeof c.name === "string" && c.name.trim()).map((c) => normalize(c));
     const icons = data.icons && typeof data.icons === "object" ? data.icons : {};
+    const template = cleanStages(data.template && data.template.stages);
     const iconCount = companies.filter((c) => c.iconId && typeof icons[c.iconId] === "string").length;
     if (!companies.length) { msg.textContent = "読み込める企業がありませんでした。"; return; }
-    S.pendingImport = { companies, icons };
+    S.pendingImport = { companies, icons, template };
     const when = parseDate(data.exportedAt);
-    $("import-summary").textContent = `${companies.length} 社（アイコン ${iconCount} 件）${when ? `・${fmtFull(when)} 書き出し` : ""} のデータを読み込みます。今のデータ：${S.docs.length} 社。`;
+    $("import-summary").textContent = `${companies.length} 社（アイコン ${iconCount} 件）${when ? `・${fmtFull(when)} 書き出し` : ""} のデータを読み込みます。今のデータ：${S.docs.length} 社。${template ? "「置き換え」では段階テンプレートもファイルの内容になります。" : ""}`;
     $("import-confirm").hidden = false; msg.textContent = "";
     $("btn-import-merge").focus();
   }
@@ -634,7 +860,10 @@
     const msg = $("backup-msg");
     $("btn-import-merge").disabled = $("btn-import-replace").disabled = true;
     try {
-      if (replace) await serial(() => Store.clearAll());
+      if (replace) {
+        await serial(() => Store.clearAll());
+        if (p.template) await serial(() => Store.putSetting("template", { stages: p.template }));
+      }
       const existing = new Set(replace ? [] : S.docs.map((c) => c.id));
       for (const c of p.companies) {
         const rec = { ...c };
@@ -649,6 +878,7 @@
       }
       msg.textContent = `${p.companies.length} 社を${replace ? "置き換えて" : "追加して"}読み込みました。`;
       S.pendingImport = null; $("import-confirm").hidden = true; $("backup-file").value = "";
+      notifyOthers();
       await reload();
     } catch (e) { msg.textContent = "読み込み中にエラーが起きました。" + errText(e); }
     finally { $("btn-import-merge").disabled = $("btn-import-replace").disabled = false; }
@@ -669,11 +899,14 @@
     const b = e.target.closest("[data-act]");
     if (!b || b.disabled) return;
     const id = b.dataset.id, act = b.dataset.act;
+    const c = id ? byId(id) : null;
     if (act === "edit") openDialog(id);
     else if (act === "add") openDialog(null);
     else if (act === "samples") { b.disabled = true; insertSamples(); }
-    else if (act === "advance") { const c = byId(id); if (c && !isTerm(c.stage) && STAGES[IDX[c.stage] + 1]) changeStage(c, STAGES[IDX[c.stage] + 1].k); }
-    else if (act === "rejected" || act === "declined") changeStage(byId(id), act);
+    else if (act === "advance" && c && !isTerm(c.stage)) { const n = c.stages[stageIndex(c) + 1]; if (n) changeStage(c, n.id); }
+    else if (act === "back" && c && !isTerm(c.stage)) { const p = c.stages[stageIndex(c) - 1]; if (p) changeStage(c, p.id); }
+    else if (act === "restore" && c && isTerm(c.stage)) { const r = reached(c); changeStage(c, c.stages[r >= 0 ? r : 0].id); }
+    else if ((act === "rejected" || act === "declined") && c) changeStage(c, act);
   });
   $("btn-add").addEventListener("click", () => openDialog(null));
   let qt;
