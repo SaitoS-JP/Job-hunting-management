@@ -3,8 +3,8 @@
 export const THEMES = Object.freeze([
   { id: "standard", label: "標準", note: "落ち着いた手帳風。いつもの見た目です" },
   { id: "pop", label: "ポップ", note: "やわらかいパステルと丸い字体" },
-  { id: "wa", label: "和風", note: "和紙の白と藍・朱、見出しは明朝" },
-  { id: "yo", label: "洋風", note: "アイボリーと紺・えんじ、セリフ体" },
+  { id: "wa", label: "和風", note: "和紙の白に墨と朱、見出しは明朝" },
+  { id: "yo", label: "洋風", note: "アイボリーにえんじ、セリフ体" },
   { id: "sf", label: "SF", note: "暗い宇宙とネオン、ドットと等幅の数字" },
 ].map(Object.freeze));
 export const THEME_IDS = THEMES.map((t) => t.id);

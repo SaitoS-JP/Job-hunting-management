@@ -33,7 +33,7 @@
 
 [data-theme-name="wa"]{
   --bg:#f5f1e8; --surface:#fbf8f1; --surface-2:#efe9dc; --surface-3:#e6dfcf; --ink:#1d1c1a; --ink-2:#4a463f;
-  --ink-3:#68625a; --line:#d6cdbb; --rule:#e5ddcc; --accent:#1f3a68; --accent-ink:#ffffff; --accent-soft:#dde3ee;
+  --ink-3:#68625a; --line:#d6cdbb; --rule:#e5ddcc; --accent:#2a2622; --accent-ink:#fbf8f1; --accent-soft:#e9e2d4;
   --danger:#a8291f; --danger-soft:#f5ddd7; --warn:#765400; --warn-soft:#f1e6c8; --ok:#2f6b3a; --ok-soft:#dce9d9;
   --muted:#9a9386; --muted-soft:#ece6da; --chip:#f3dcd3; --chip-ink:#862819; --focus:#c4402f; --shadow:0 1px 0 rgba(60,50,30,.06);
   --overlay:rgba(29,28,26,.5); --st-interest:#837d71; --st-entry:#3b5a8c; --st-es:#5b4f8a; --st-test:#2f6f6a; --st-gd:#8f630f;
@@ -58,15 +58,15 @@
   }
 }
 [data-theme-name="wa"] body{background-image:linear-gradient(90deg, rgba(120,100,60,.025) 1px, transparent 1px); background-size:3px 3px}
-[data-theme-name="wa"] .top{border-bottom-width:1px; box-shadow:0 3px 0 -2px var(--ink)}
+[data-theme-name="wa"] .top{border-bottom:2px solid var(--focus)}
 
 [data-theme-name="yo"]{
   --bg:#f6f1e4; --surface:#fffcf4; --surface-2:#f0e9d8; --surface-3:#e7dec8; --ink:#1b2130; --ink-2:#464b58;
-  --ink-3:#65676f; --line:#d8ceb6; --rule:#e7dfcb; --accent:#1d2f5e; --accent-ink:#ffffff; --accent-soft:#dde2ee;
-  --danger:#8c1d2c; --danger-soft:#f2dde0; --warn:#735510; --warn-soft:#f0e5c6; --ok:#2e5e3e; --ok-soft:#dbe7dc;
-  --muted:#9b9585; --muted-soft:#ede6d6; --chip:#efe0b8; --chip-ink:#634a10; --focus:#1d2f5e; --shadow:0 1px 0 rgba(40,30,10,.05), 0 2px 6px rgba(40,30,10,.06);
+  --ink-3:#65676f; --line:#d8ceb6; --rule:#e7dfcb; --accent:#7a1f33; --accent-ink:#fffcf4; --accent-soft:#f1dde2;
+  --danger:#b3261e; --danger-soft:#f6dcd8; --warn:#735510; --warn-soft:#f0e5c6; --ok:#2e5e3e; --ok-soft:#dbe7dc;
+  --muted:#9b9585; --muted-soft:#ede6d6; --chip:#efe0b8; --chip-ink:#634a10; --focus:#7a1f33; --shadow:0 1px 0 rgba(40,30,10,.05), 0 2px 6px rgba(40,30,10,.06);
   --overlay:rgba(27,33,48,.5); --st-interest:#807a6d; --st-entry:#2c4a86; --st-es:#5a4b86; --st-test:#2f6a6a; --st-gd:#8c6a12;
-  --st-interview2:#a04f27; --st-final:#6b2f55; --st-offer:#2e5e3e; --st-rejected:#8c1d2c; --st-declined:#807a6d; --mg0-b:#dfe3ef;
+  --st-interview2:#a04f27; --st-final:#6b2f55; --st-offer:#2e5e3e; --st-rejected:#b3261e; --st-declined:#807a6d; --mg0-b:#dfe3ef;
   --mg0-i:#1d2f5e; --mg1-b:#dde8de; --mg1-i:#2e5e3e; --mg2-b:#f0e5c6; --mg2-i:#634a10; --mg3-b:#e9e0ea;
   --mg3-i:#5a3756; --mg4-b:#f2dde0; --mg4-i:#8c1d2c; --mg5-b:#dbe7e7; --mg5-i:#26575a; --step-off:#ebe3d0;
   --step-off-ink:#6f6a5c;
