@@ -92,6 +92,25 @@ export function planExport(items, snapshot, { now = new Date(), mode = "merge" }
   return { seq, snapshot: { at: now.toISOString(), items: next } };
 }
 
+/**
+ * The user fixed their calendar app by hand: record the current state as what
+ * the calendar holds, so the "違いがあります" notice stops. Changed events take
+ * their current fingerprint (sequence +1, as a later file would), removed ones
+ * are forgotten, new (never exported) ones are left alone. The export date stays.
+ */
+export function acknowledgeDiff(companies, snapshot, now = new Date()) {
+  const snap = cleanSnapshot(snapshot);
+  if (!snap.at) return snap;
+  const d = diffExport(companies, snap, now);
+  const items = { ...snap.items };
+  for (const x of d.changed) {
+    const prev = items[x.uid];
+    items[x.uid] = { h: x.fp.h, k: x.fp.k, seq: prev.seq + 1, at: x.fp.at, label: x.fp.label, company: x.fp.company };
+  }
+  for (const x of d.removed) delete items[x.uid];
+  return { at: snap.at, items };
+}
+
 const TERM = { rejected: "不合格", declined: "辞退" };
 /**
  * Calendar-visible changes to exported events caused by one edit.

@@ -59,7 +59,9 @@ export function createTour(cfg) {
       $("tour-count").textContent = `${i + 1} / ${steps.length}`;
       $("tour-title").textContent = s.title;
       $("tour-text").textContent = s.text;
-      $("tour-btns").innerHTML = (i > 0 ? btn("tour-prev", "戻る") : "") + btn("tour-next", i === steps.length - 1 ? "おわり" : "次へ", "primary") + btn("tour-end", "終了", "ghost");
+      const last = i === steps.length - 1;
+      // last step: just 戻る and a highlighted 終了 (no separate 「おわり」)
+      $("tour-btns").innerHTML = (i > 0 ? btn("tour-prev", "戻る") : "") + (last ? btn("tour-end", "終了", "primary") : btn("tour-next", "次へ", "primary") + btn("tour-end", "終了", "ghost"));
       const el = target();
       if (el) el.scrollIntoView({ block: "center", inline: "nearest", behavior: reduced() ? "auto" : "smooth" });
     }

@@ -127,8 +127,13 @@ export function initBackupPanel(app) {
       const errs = checkEnvelope(parsed);
       if (errs.length) { msg("このファイルは読み込めません。データは変更していません。"); showErrors(errs); $("backup-file").value = ""; return; }
       S.pendingEnvelope = parsed;
-      $("bk-unlock").hidden = false; msg("");
-      $("bk-unlock-pw").focus();
+      // avoid two password areas on screen: fold the export-side password fields
+      if ($("bk-lock").checked) { $("bk-lock").checked = false; $("bk-lock-box").hidden = true; clearPasswords(); }
+      $("bk-unlock").hidden = false;
+      msg("パスワード付きのファイルです。下の欄にパスワードを入れて「開く」を押してください。");
+      // iOS does not scroll to a field focused after the file picker closes
+      $("bk-unlock").scrollIntoView({ block: "center", behavior: "auto" });
+      $("bk-unlock-pw").focus({ preventScroll: true });
       return;
     }
     continueImport(text);

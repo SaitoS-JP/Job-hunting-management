@@ -3,7 +3,7 @@ import { withEventState } from "./events.js";
 import { matchesQuery, KINDS } from "./notes.js";
 import { addMonths, localYmd, parseYmd } from "./calendar.js";
 import { buildICS, selectForExport } from "./ics.js";
-import { diffExport, planExport, cleanSnapshot, exportedChanges } from "./ics-sync.js";
+import { diffExport, planExport, cleanSnapshot, exportedChanges, acknowledgeDiff } from "./ics-sync.js";
 import { compareSelection } from "./compare.js";
 import { compareHTML } from "./ui/compare.js";
 import { calendarHTML, todayState } from "./ui/calendar.js";
@@ -414,7 +414,8 @@ function renderIcsDiff() {
     ? `${esc(x.fp.company)}：${esc(fmtAt(x.before.at))} ${esc(x.before.label)} → <b>${esc(fmtAt(x.fp.at))} ${esc(x.fp.label)}</b>`
     : `${ev(x)}（説明欄のみ：選考段階など）`;
   const advice = d.notable
-    ? `<p class="ics-adv">取り込み済みの予定は自動では変わりません。日時の変更やなくなった予定を反映するには、専用カレンダーを作り直して「すべて書き出す」を取り込んでください。</p>`
+    ? `<p class="ics-adv">取り込み済みの予定は自動では変わりません。日時の変更やなくなった予定を反映するには、専用カレンダーを作り直して「すべて書き出す」を取り込むか、カレンダーアプリで直接直してください。</p>
+       <p class="row"><button type="button" class="btn small" data-act="ics-ack">カレンダー側も直したので、確認済みにする</button></p>`
     : d.added.length ? `<p class="ics-adv ok">追加だけなので「新しい予定だけ書き出す」で大丈夫です（重複しません）。</p>` : `<p class="ics-adv ok">カレンダーに取り込んだ内容と同じです。</p>`;
   box.innerHTML = `<p class="ics-sum">前回の書き出し（${esc(fmtFull(new Date(S.icsExport.at)))}）以降：${parts.join("・")}${minor ? `<span class="hint">（ほかに説明欄だけの変更 ${minor}件）</span>` : ""}</p>
     ${diffList("新しい予定", d.added, ev)}
@@ -434,6 +435,16 @@ function renderIcsHint(now) {
   if (!$("ics-panel").hidden) renderIcsDiff();
 }
 $("btn-ics-check").addEventListener("click", () => openIcsPanel(true));
+function acknowledgeIcs() {
+  const before = diffExport(S.docs, S.icsExport).notable;
+  S.icsExport = acknowledgeDiff(S.docs, S.icsExport);
+  serial(() => store.putSetting("icsExport", S.icsExport)).catch(() => {});
+  $("notice-ics").hidden = true;
+  render();
+  if (!$("ics-panel").hidden) { renderIcsDiff(); $("ics-msg").textContent = before ? `${before}件の違いを確認済みにしました。` : ""; }
+}
+$("btn-ics-ack").addEventListener("click", acknowledgeIcs);
+document.addEventListener("click", (e) => { if (e.target.closest('[data-act="ics-ack"]')) acknowledgeIcs(); });
 $("btn-ics-dismiss").addEventListener("click", () => { lsSet(LS.icsDismiss, $("notice-ics").dataset.sig || ""); $("notice-ics").hidden = true; });
 $("f-kind").addEventListener("change", (e) => { S.kind = e.target.value; render(); });
 let qt;
