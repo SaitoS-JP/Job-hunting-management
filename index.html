@@ -290,16 +290,43 @@
       </div>
     </div>
     <div class="dlg-b" role="tabpanel" id="pane-es" aria-labelledby="tab-es" hidden>
-      <div class="fld full">
-        <p class="hint" style="margin:0">提出したESの設問と回答を残しておくと、面接前の見直しや他社のESに使えます。</p>
+      <div class="fld full" id="es-main">
+        <p class="hint" style="margin:0">提出したESの設問と回答を残しておくと、面接前の見直しや他社のESに使えます。文字数は改行を除いて数えます（スペース・記号を含む）。</p>
+        <div class="sed-tools"><button type="button" class="btn small" id="btn-es-pick">他社のESから使う</button></div>
         <ol class="notes" id="es-list" aria-label="ESの記録"></ol>
         <p class="sed-msg" id="es-err" role="alert"></p>
+        <p class="hint" id="es-info" role="status"></p>
         <div class="sed-tools"><button type="button" class="btn small" id="btn-es-add">＋ ESの設問を追加</button></div>
         <datalist id="es-q-suggest">
           <option value="志望動機"></option><option value="自己PR"></option><option value="ガクチカ"></option>
           <option value="入社後にやりたいこと"></option><option value="長所・短所"></option>
         </datalist>
       </div>
+      <section class="fld full picker" id="es-picker" aria-labelledby="es-picker-title" hidden>
+        <div class="picker-h">
+          <h3 id="es-picker-title">他社のESから使う</h3>
+          <button type="button" class="btn small ghost" id="btn-es-picker-close">閉じる</button>
+        </div>
+        <div id="es-picker-browse">
+          <label for="es-picker-q" class="sr">ESを検索</label>
+          <input type="search" class="input" id="es-picker-q" placeholder="設問・回答・社名で検索" autocomplete="off">
+          <div class="chips" id="es-picker-cats" role="group" aria-label="設問の種類で絞り込み"></div>
+          <ul class="picker-list" id="es-picker-list" aria-label="ほかの企業のES"></ul>
+        </div>
+        <div class="picker-prev" id="es-picker-prev" hidden>
+          <div id="es-picker-prev-body"></div>
+          <div class="confirm-row" id="es-replace-confirm" hidden>
+            <span class="grow" style="flex:1 1 200px">いまの回答をこの内容に置き換えます。いまの回答は消えます。</span>
+            <button type="button" class="btn small danger" id="btn-es-replace-yes">置き換える</button>
+            <button type="button" class="btn small" id="btn-es-replace-no">やめる</button>
+          </div>
+          <div class="row">
+            <button type="button" class="btn small primary" id="btn-es-use">この内容で追加</button>
+            <button type="button" class="btn small ghost" id="btn-es-back">一覧に戻る</button>
+          </div>
+          <p class="hint">コピーした内容は、元の企業のESとは別に保存されます。</p>
+        </div>
+      </section>
     </div>
     <div class="dlg-b" role="tabpanel" id="pane-iv" aria-labelledby="tab-iv" hidden>
       <div class="fld full">

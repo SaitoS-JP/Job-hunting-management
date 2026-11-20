@@ -3,6 +3,8 @@ import { $, esc } from "./html.js";
 import { iconHTML, squareImage } from "../icons.js";
 import { putIconBlob, getIconBlob } from "../store.js";
 import { createNotesEditor, notesFromDraft } from "./notes-editor.js";
+import { createEsPicker } from "./es-picker.js";
+import { normalizeLimit } from "../notes.js";
 import { downloadBlob } from "./download.js";
 import { normalizeKind } from "../notes.js";
 import { buildICS, selectForExport } from "../ics.js";
@@ -47,7 +49,17 @@ export function initDialog(app) {
     n("tab-es-n", S.draftES.length);
     n("tab-iv-n", S.draftIV.length);
   }
-  const esEd = createNotesEditor("es", { get: () => S.draftES, set: (a) => { S.draftES = a; }, changed: updateTabCounts });
+  const esEd = createNotesEditor("es", { get: () => S.draftES, set: (a) => { S.draftES = a; }, changed: updateTabCounts, onPick: (id) => picker.open(id) });
+  const picker = createEsPicker({
+    companies: () => S.docs, excludeId: () => S.editingId,
+    getDraft: () => S.draftES, setDraft: (a) => { S.draftES = a; },
+    afterChange: (focusId, message, entryId) => {
+      esEd.render(); updateTabCounts();
+      const el = $(focusId); if (el) el.focus();
+      const m = $(`es-m-${entryId}`); if (m) m.textContent = message;
+    },
+  });
+  $("btn-es-pick").addEventListener("click", () => picker.open(null));
   const ivEd = createNotesEditor("iv", { get: () => S.draftIV, set: (a) => { S.draftIV = a; }, changed: updateTabCounts });
   function refreshIvTitles() {
     const labels = [...new Set([...S.draftStages.map((s) => String(s.label).trim()).filter(Boolean), "GD", "人事面接", "役員面接"])];
@@ -231,7 +243,7 @@ export function initDialog(app) {
     $("c-memo").value = c ? c.memo : "";
     for (const k of ["form-err", "cs-err", "ev-err", "es-err", "iv-err", "ev-ics-msg"]) $(k).textContent = "";
     $("sibling-wrap").hidden = !c;
-    esEd.render(); ivEd.render(); refreshIvTitles(); updateTabCounts(); showTab("basic");
+    picker.close(); esEd.render(); ivEd.render(); refreshIvTitles(); updateTabCounts(); showTab("basic");
     $("del-confirm").hidden = true;
     $("btn-delete").hidden = !c;
     setStageEditorOpen(false);
@@ -289,6 +301,8 @@ export function initDialog(app) {
     if (chk.error) { showTab("basic"); setStageEditorOpen(true); $("cs-err").textContent = chk.error; return fail("選考段階の編集欄を確認してください。"); }
     const ev = eventsFromRows(S.draftEvents, fromInputs);
     if (ev.error) { $("ev-err").textContent = ev.error; return fail("「予定」の欄を確認してください。", ev.id ? `ev-date-${ev.id}` : null, "events"); }
+    const badLimit = S.draftES.find((r) => String(r.limit ?? "").trim() && normalizeLimit(r.limit) === null);
+    if (badLimit) { $("es-err").textContent = "文字数制限は1〜10000の整数で入れてください（なしなら空欄）。"; return fail("「ES」の欄を確認してください。", `es-l-${badLimit.id}`, "es"); }
     const badIv = S.draftIV.find((r) => r.date && !/^\d{4}-\d{2}-\d{2}$/.test(r.date));
     if (badIv) { $("iv-err").textContent = "日付が正しくない面接の記録があります。"; return fail("「面接」の欄を確認してください。", `iv-d-${badIv.id}`, "iv"); }
     const stages = chk.stages;

@@ -16,14 +16,15 @@ export function buildSamples(template, now = new Date()) {
       hist: [1, 2, 3, 4].map(at),
       notes: {
         es: [
-          { question: "志望動機", answer: "物流と商流の両方から地域の産業を支える仕事に関心があります。学生時代に地元の商店街で販路づくりを手伝った経験から、人と人をつなぐ役割を担いたいと考えています。" },
-          { question: "ガクチカ", answer: "ゼミで地域企業10社へのヒアリングを企画し、報告書をまとめました。日程調整と質問設計を担当し、全社から回答を得ました。" },
+          { question: "志望動機", limit: 400, answer: "物流と商流の両方から地域の産業を支える仕事に関心があります。学生時代に地元の商店街で販路づくりを手伝った経験から、人と人をつなぐ役割を担いたいと考えています。" },
+          { question: "学生時代に力を入れたこと", limit: 300, answer: "ゼミで地域企業10社へのヒアリングを企画し、報告書をまとめました。日程調整と質問設計を担当し、全社から回答を得ました。" },
         ],
         interviews: [{ date: ymd(-10), title: "GD", questions: "テーマ：新規事業の立案（4人・30分）", reflection: "時間配分の提案ができた。結論を先に言う練習が必要。" }],
       },
     },
     { name: "サンプル商事", kind: "サマーインターン", position: "5日間ワークショップ", industry: "商社", stage: "declined", priority: 1, events: [], hist: [1, 2].map(at).concat("declined") },
-    { name: "架空テック", kind: "サマーインターン", position: "エンジニア職", industry: "IT・通信", stage: at(2), priority: 1, events: [ev(0, "ES締切", 23, 59), ev(24, "インターン初日", 10)], hist: [1, 2].map(at) },
+    { name: "架空テック", kind: "サマーインターン", position: "エンジニア職", industry: "IT・通信", stage: at(2), priority: 1, events: [ev(0, "ES締切", 23, 59), ev(24, "インターン初日", 10)], hist: [1, 2].map(at),
+      notes: { es: [{ question: "あなたの強みを教えてください", limit: 200, answer: "粘り強く仕組みを改善できることです。アルバイト先の在庫管理表を作り直し、棚卸しの時間を半分にしました。" }], interviews: [] } },
     { name: "みどり食品（例）", kind: "本選考", position: "研究開発コース", industry: "食品", stage: at(3), priority: 2, events: [ev(5, "Webテスト締切")], hist: [1, 2, 3].map(at) },
     { name: "ほしぞら銀行（例）", kind: "早期選考", position: "オープンコース", industry: "金融", stages: custom, stage: custom[5].id, priority: 2, events: [ev(9, "三次面接", 10), ev(30, "最終面接", 13)], hist: [1, 2, 3, 4, 5].map((i) => custom[i].id) },
     { name: "あおば出版（例）", kind: "本選考", position: "編集職", industry: "出版", stage: "rejected", priority: 3, events: [], hist: [...[1, 2, 4].map(at), "rejected"] },
@@ -35,7 +36,7 @@ export function buildSamples(template, now = new Date()) {
     return normalize({
       name: r.name, kind: r.kind, position: r.position, industry: r.industry, stages, stage: r.stage, priority: r.priority,
       events: r.events, url: "", memo: "これはサンプルです。自由に編集・削除できます。",
-      notes: r.notes ? { es: r.notes.es.map((e) => ({ ...e, updatedAt: ago(4) })), interviews: r.notes.interviews } : undefined,
+      notes: r.notes ? { es: r.notes.es.map((e, i) => ({ ...e, updatedAt: ago(4 + i) })), interviews: r.notes.interviews } : undefined,
       history: r.hist.map((s, i) => ({ stage: s, at: ago((n - i) * 6), label: labelIn(stages, s) })),
       updatedAt: now.toISOString(), example: true,
     });

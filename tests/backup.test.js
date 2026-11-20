@@ -92,7 +92,7 @@ test("v4 keeps kind and notes; v3 (no kind/notes) migrates to defaults", () => {
   const c4 = normalize({ id: "a", name: "社", kind: "ウィンターインターン", notes: { es: [{ id: "q1", question: "自己PR", answer: "粘り強さ" }], interviews: [] } });
   const v4 = validateBackup(JSON.stringify(serializeBackup({ companies: [c4], template: DEFAULT_STAGES, icons: {} })));
   assert.equal(v4.ok, true);
-  assert.equal(v4.version, 4);
+  assert.equal(v4.version, BACKUP_VERSION);
   assert.equal(v4.companies[0].kind, "ウィンターインターン");
   assert.equal(v4.companies[0].notes.es[0].answer, "粘り強さ");
   const v3 = validateBackup(file({ version: 3, companies: [{ id: "b", name: "旧", events: [{ id: "e", at: "2026-11-25T00:00:00Z", label: "x" }] }] }));
@@ -123,4 +123,22 @@ test("backup reminder: only for own data, after 7 days, and only when changed si
   assert.deepEqual(backupReminder({ companies: [rec(daysAgo(1))], lastBackupAt: daysAgo(10), now }), { never: false, days: 10 });
   assert.equal(backupReminder({ companies: [rec(daysAgo(1))], lastBackupAt: daysAgo(3), now }), null);
   assert.equal(backupReminder({ companies: [rec(daysAgo(8))], snoozeUntil: daysAgo(-1), now }), null);
+});
+
+test("v5 keeps the offer flag and ES limit; v4 migrates the flag", () => {
+  const stages = [{ id: "s1", label: "書類" }, { id: "s2", label: "最終面接" }, { id: "s3", label: "内定承諾" }];
+  const c = normalize({ id: "a", name: "社", stages: stages.map((s, i) => ({ ...s, offer: i === 1 })), stage: "s2", notes: { es: [{ id: "q", question: "志望動機", answer: "x", limit: 400 }] } });
+  const v5 = validateBackup(JSON.stringify(serializeBackup({ companies: [c], template: DEFAULT_STAGES, icons: {} })));
+  assert.equal(v5.ok, true);
+  assert.equal(v5.version, 5);
+  assert.deepEqual(v5.companies[0].stages.map((s) => s.offer), [false, true, false]);
+  assert.equal(v5.companies[0].notes.es[0].limit, 400);
+  assert.equal(v5.template[7].offer, true);
+  const v4 = validateBackup(file({ version: 4, template: { stages: [{ id: "x", label: "最終" }] }, companies: [{ id: "b", name: "旧", stages, stage: "s2" }, { id: "c", name: "旧2", stage: "offer" }] }));
+  assert.equal(v4.ok, true);
+  assert.deepEqual(v4.companies[0].stages.map((s) => s.offer), [false, false, true]); // label 内定承諾
+  assert.equal(v4.companies[1].stages.find((s) => s.offer).id, "offer");
+  assert.equal(v4.template[0].offer, false); // no 内定 anywhere: none, not the last stage
+  const bad = validateBackup(file({ version: 5, companies: [{ name: "a", notes: { es: [{ answer: "x", limit: 99999 }] } }] }));
+  assert.equal(bad.ok, false);
 });

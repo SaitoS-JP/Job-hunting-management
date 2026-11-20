@@ -29,6 +29,12 @@ function uniqId(v, seen, prefix) {
   seen.add(id); return id;
 }
 
+/** 文字数制限: integer 1–10000, otherwise none (null). */
+export function normalizeLimit(v) {
+  const n = typeof v === "string" && v.trim() ? Number(v) : v;
+  return Number.isInteger(n) && n >= 1 && n <= NOTE_LIMITS.answer ? n : null;
+}
+
 /** Tolerant normalization: oversized text is cut, broken entries dropped. */
 export function normalizeNotes(n) {
   const L = NOTE_LIMITS;
@@ -38,6 +44,7 @@ export function normalizeNotes(n) {
     id: uniqId(e.id, seen, "q"),
     question: str(e.question, L.question),
     answer: str(e.answer, L.answer),
+    limit: normalizeLimit(e.limit),
     updatedAt: typeof e.updatedAt === "string" ? e.updatedAt : "",
   }));
   const interviews = (Array.isArray(src.interviews) ? src.interviews : []).filter((e) => e && typeof e === "object").slice(0, L.entries).map((e) => ({
@@ -66,6 +73,7 @@ export function notesErrors(n) {
     if (!e || typeof e !== "object") continue;
     if (typeof e.answer === "string" && e.answer.length > L.answer) { errs.push(`ESの回答が${L.answer}文字を超えています`); break; }
     if (typeof e.question === "string" && e.question.length > L.question) { errs.push(`ESの設問が${L.question}文字を超えています`); break; }
+    if (e.limit != null && normalizeLimit(e.limit) === null) { errs.push("ESの文字数制限は1〜10000の整数にしてください"); break; }
   }
   for (const e of Array.isArray(n.interviews) ? n.interviews : []) {
     if (!e || typeof e !== "object") continue;
@@ -90,3 +98,13 @@ export function matchesQuery(c, q) {
 }
 /** Count characters as people see them (surrogate pairs = 1). */
 export const charCount = (s) => Array.from(String(s || "")).length;
+/** ES 文字数: every character except line breaks (most ES forms count this
+    way); spaces and symbols count, surrogate pairs count as one. */
+export const ES_COUNT_RULE = "改行を除いた文字数（スペース・記号を含む）";
+export const esCount = (s) => Array.from(String(s || "").replace(/\r\n|\r|\n/g, "")).length;
+/** Counter text for an answer against an optional limit. */
+export function limitStatus(count, limit) {
+  if (!limit) return { text: `${count}字`, over: false, rest: "" };
+  const d = limit - count;
+  return { text: `${count} / ${limit}字`, over: d < 0, rest: d >= 0 ? `あと${d}字` : `${-d}字オーバー` };
+}

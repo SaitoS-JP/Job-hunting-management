@@ -1,5 +1,5 @@
 /* 就活ボード service worker — offline app shell. Bump VERSION on every release. */
-const VERSION = "v9";
+const VERSION = "v10";
 const SHELL_CACHE = "shukatsu-shell-" + VERSION;
 const FONT_CACHE = "shukatsu-fonts-v2";
 const SHELL = [
@@ -27,6 +27,8 @@ const SHELL = [
   "./js/ui/notes-editor.js",
   "./js/ui/calendar.js",
   "./js/ui/download.js",
+  "./js/ui/es-picker.js",
+  "./js/es.js",
   "./manifest.webmanifest",
   "./icons/icon-180.png",
   "./icons/icon-192.png",

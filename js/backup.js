@@ -4,7 +4,7 @@ import { parseDate } from "./dates.js";
 import { notesErrors, MAX_KIND } from "./notes.js";
 
 export const APP_ID = "shukatsu-board";
-export const BACKUP_VERSION = 4;
+export const BACKUP_VERSION = 5;
 export const MAX_FILE_BYTES = 60 * 1024 * 1024;
 export const MAX_COMPANIES = 5000;
 export const MAX_ICON_BYTES = 2 * 1024 * 1024;
