@@ -72,3 +72,20 @@ test("broken snapshots are cleaned", () => {
   assert.deepEqual(Object.keys(cleanSnapshot({ at: "t", items: { a: { h: "1", seq: -3 }, b: 5 } }).items), ["a"]);
   assert.equal(cleanSnapshot({ at: "t", items: { a: { h: "1", seq: -3 } } }).items.a.seq, 0);
 });
+
+import { exportedChanges } from "../js/ics-sync.js";
+test("changes to exported events caused by one edit", () => {
+  const c = co([{ id: "e1", at: iso(25, 14), label: "一次面接" }, { id: "e2", at: iso(27), label: "ES締切" }, { id: "e3", at: iso(28), label: "説明会" }]);
+  const { snapshot } = planExport(exportable([c]).filter((x) => x.event.id !== "e3"), null, { now: NOW, mode: "full" }); // e3 never exported
+  assert.deepEqual(exportedChanges(c, c, snapshot), []);
+  assert.deepEqual(exportedChanges(c, c, null), []); // never exported: nothing to say
+  const moved = co([{ id: "e1", at: iso(25, 16), label: "一次面接" }, { id: "e2", at: iso(27), label: "ES締切", done: true }, { id: "e3", at: iso(29), label: "説明会" }]);
+  const r = exportedChanges(c, moved, snapshot);
+  assert.deepEqual(r.map((x) => [x.type, x.reason || ""]), [["changed", ""], ["removed", "完了"]]);
+  assert.equal(r[0].before.at, iso(25, 14));
+  assert.equal(r[0].after.at, iso(25, 16));
+  assert.deepEqual(exportedChanges(c, withStage(c, "declined", NOW), snapshot).map((x) => x.reason), ["辞退", "辞退"]);
+  assert.deepEqual(exportedChanges(c, null, snapshot).map((x) => x.reason), ["企業を削除", "企業を削除"]);
+  assert.deepEqual(exportedChanges(c, co([{ id: "e2", at: iso(27), label: "ES締切" }]), snapshot).map((x) => x.reason), ["予定を削除"]);
+  assert.deepEqual(exportedChanges(c, withStage(c, "gd", NOW), snapshot), []); // stage only: description changes, nothing visible
+});

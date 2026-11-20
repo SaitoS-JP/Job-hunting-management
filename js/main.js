@@ -3,7 +3,7 @@ import { withEventState } from "./events.js";
 import { matchesQuery, KINDS } from "./notes.js";
 import { addMonths, localYmd, parseYmd } from "./calendar.js";
 import { buildICS, selectForExport } from "./ics.js";
-import { diffExport, planExport, cleanSnapshot } from "./ics-sync.js";
+import { diffExport, planExport, cleanSnapshot, exportedChanges } from "./ics-sync.js";
 import { compareSelection } from "./compare.js";
 import { compareHTML } from "./ui/compare.js";
 import { calendarHTML, todayState } from "./ui/calendar.js";
@@ -80,11 +80,43 @@ async function reload() {
     render();
   } catch (e) { showErr("データを読み込めませんでした。ページを開き直してください。"); }
 }
-async function saveRecord(rec) { await serial(() => store.put(rec)); notifyOthers(); }
+async function saveRecord(rec) {
+  const before = S.docs.find((c) => c.id === rec.id) || null;
+  hideChangeNotice();
+  await serial(() => store.put(rec)); notifyOthers();
+  if (before) noteExportChanges(before, normalize(rec, rec.id));
+}
 async function deleteRecord(c) {
+  hideChangeNotice();
   await serial(async () => { await store.del(c.id); if (c.iconId) await store.delIcon(c.iconId).catch(() => {}); });
   notifyOthers();
+  noteExportChanges(c, null);
 }
+
+/* ---------- 書き出し済みの予定が変わったときのお知らせ ---------- */
+const pendingChanges = [];
+function noteExportChanges(before, after) {
+  const ch = exportedChanges(before, after, S.icsExport);
+  if (!ch.length) return;
+  pendingChanges.push(...ch);
+  showChangeNotice(pendingChanges);
+}
+function hideChangeNotice() { pendingChanges.length = 0; $("change-notice").hidden = true; }
+function showChangeNotice(list) {
+  const fmt = (iso) => fmtDate(new Date(iso));
+  const lines = list.slice(0, 2).map((x) => x.type === "changed"
+    ? `書き出し済みの予定が変わりました：${fmt(x.before.at)} ${x.before.label} → ${fmt(x.after.at)}${x.after.label !== x.before.label ? ` ${x.after.label}` : ""}（${x.before.company}）`
+    : `${x.before.company}の「${x.before.label}」（${fmt(x.before.at)}）の予定がなくなりました（${x.reason}）`);
+  if (list.length > 2) lines.push(`ほか ${list.length - 2}件`);
+  const tips = [];
+  if (list.some((x) => x.type === "changed")) tips.push("iPhone などのカレンダーに取り込んだ予定は自動では変わりません。カレンダー側の予定も確認してください。");
+  if (list.some((x) => x.type === "removed")) tips.push("カレンダー側の予定は残っています。不要なら削除してください。");
+  const p = (cls, t) => Object.assign(document.createElement("p"), { className: cls, textContent: t });
+  $("cn-body").replaceChildren(...lines.map((t) => p("cn-line", t)), ...tips.map((t) => p("cn-tip", t)));
+  $("change-notice").hidden = false;
+}
+$("btn-cn-close").addEventListener("click", () => hideChangeNotice());
+$("btn-cn-open").addEventListener("click", () => { hideChangeNotice(); openIcsPanel(true); });
 async function changeStage(c, stage) {
   if (!c || !stage || c.stage === stage) return;
   try { await saveRecord(withStage(c, stage)); await reload(); } catch (e) { showErr(errText(e)); }
@@ -398,7 +430,7 @@ function renderIcsHint(now) {
   const sig = [...d.changed.filter((x) => x.major).map((x) => x.uid + x.fp.k), ...d.removed.map((x) => x.uid)].sort().join("|");
   el.hidden = !d.notable || lsGet(LS.icsDismiss) === sig;
   el.dataset.sig = sig;
-  if (!el.hidden) $("notice-ics-text").textContent = `カレンダーに取り込んだ予定と違いがあります（${d.notable}件）`;
+  if (!el.hidden) $("notice-ics-text").textContent = `カレンダーに取り込んだ予定と違いがあります（${d.notable}件）。カレンダー側の予定も確認してください。`;
   if (!$("ics-panel").hidden) renderIcsDiff();
 }
 $("btn-ics-check").addEventListener("click", () => openIcsPanel(true));

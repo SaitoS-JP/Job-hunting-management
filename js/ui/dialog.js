@@ -9,6 +9,7 @@ import { downloadBlob } from "./download.js";
 import { normalizeKind } from "../notes.js";
 import { buildICS, selectForExport } from "../ics.js";
 import { planExport } from "../ics-sync.js";
+import { uidFor } from "../ics.js";
 import { COMPARE_FIELDS, RATINGS, normalizeCompare, compareErrors, overallRating } from "../compare.js";
 import { stepsHTML, revealCurrentSteps } from "./stepper.js";
 import { defineEditor, renderEditor, editorOp } from "./stage-editor.js";
@@ -111,17 +112,23 @@ export function initDialog(app) {
     const key = (r) => (r.date ? fromInputs(r.date, r.time) || "9" : "9");
     S.draftEvents.sort((a, b) => key(a).localeCompare(key(b)));
   }
+  /* calendar-visible fields changed since the dialog opened (or the event is done now) */
+  const edited = (r) => !!r.orig && (r.date !== r.orig.date || r.time !== r.orig.time || String(r.label).trim() !== String(r.orig.label).trim() || r.done);
   function renderEvents() {
     const list = $("ev-list");
     if (!S.draftEvents.length) { list.innerHTML = `<li class="ev-empty hint">締切や面接の日付を入れておくと、一覧と「直近の予定」に近い順で並びます。<br>例：ES締切 11/30 23:59、一次面接 12/3 14:00</li>`; return; }
+    const c = editing();
+    const exported = (r) => !!(c && r.orig && S.icsExport && S.icsExport.items[uidFor(c, r)]);
     list.innerHTML = S.draftEvents.map((r) => {
       const id = esc(r.id);
+      const exp = exported(r);
       return `<li class="ev-row${r.done ? " is-done" : ""}" data-ev="${id}">
         <input type="date" class="input ev-date" id="ev-date-${id}" value="${esc(r.date)}" aria-label="予定の日付" data-evf="date">
         <input type="time" class="input ev-time" id="ev-time-${id}" value="${esc(r.time)}" aria-label="予定の時刻（任意）" data-evf="time">
         <input class="input ev-label" id="ev-label-${id}" value="${esc(r.label)}" list="label-suggest" maxlength="${MAX_EVENT_LABEL}" autocomplete="off" placeholder="内容（例：一次面接）" aria-label="予定の内容" data-evf="label">
         <label class="ev-done"><input type="checkbox" id="ev-done-${id}" data-evf="done"${r.done ? " checked" : ""}>完了</label>
         <button type="button" class="sed-b del ev-del" id="ev-del-${id}" data-evdel="${id}" aria-label="この予定を削除" title="削除">✕</button>
+        ${exp ? `<div class="ev-exp"><span class="chip exp-chip">カレンダーに書き出し済み</span><span class="ev-exp-hint" id="ev-hint-${id}" role="status"${edited(r) ? "" : " hidden"}>保存後、カレンダー側の予定も変更してください</span></div>` : ""}
       </li>`;
     }).join("");
   }
@@ -131,6 +138,7 @@ export function initDialog(app) {
     const r = S.draftEvents.find((x) => x.id === li.dataset.ev); if (!r) return;
     r[f] = f === "done" ? e.target.checked : e.target.value;
     if (f === "done") li.classList.toggle("is-done", r.done);
+    const hint = $(`ev-hint-${r.id}`); if (hint) hint.hidden = !edited(r);
     updateTabCounts();
     $("ev-err").textContent = "";
   });
@@ -251,7 +259,7 @@ export function initDialog(app) {
     const c = id ? byId(id) : null;
     S.editingId = c ? c.id : null;
     S.draftStages = cloneStages(c ? c.stages : S.template);
-    S.draftEvents = (c ? c.events : []).map((e) => ({ id: e.id, ...toInputs(e.at), label: e.label, done: e.done }));
+    S.draftEvents = (c ? c.events : []).map((e) => { const v = { id: e.id, ...toInputs(e.at), label: e.label, done: e.done }; return { ...v, orig: { date: v.date, time: v.time, label: v.label } }; });
     sortDraftEvents();
     S.draftES = (c ? c.notes.es : []).map((e) => ({ ...e }));
     S.draftIV = (c ? c.notes.interviews : []).map((e) => ({ ...e }));

@@ -613,3 +613,17 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
   .cmp-table tbody th,.cmp-corner{min-width:88px; max-width:96px}
   .viewbar .tabs button{padding:5px 12px}
 }
+
+/* ---- notice after changing exported events ---- */
+.change-notice{position:fixed; z-index:40; left:max(12px, env(safe-area-inset-left, 0px)); right:max(12px, env(safe-area-inset-right, 0px)); bottom:max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px)); max-width:640px; margin:0 auto; padding:12px 14px; border-radius:10px; background:var(--surface); color:var(--ink); border:1px solid color-mix(in srgb, var(--warn) 50%, var(--line)); border-left:4px solid var(--warn); box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.change-notice[hidden]{display:none}
+.cn-line{margin:0 0 4px; font-size:13.5px; font-weight:700; overflow-wrap:anywhere}
+.cn-tip{margin:4px 0 0; font-size:12.5px; color:var(--ink-2)}
+.cn-btns{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; justify-content:flex-end}
+.ics-copy{margin:0 0 6px; padding:6px 10px; border-radius:var(--r); background:var(--warn-soft); font-size:12.5px}
+.ev-exp{grid-column:1/-1; display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin-top:-2px}
+.exp-chip{margin-left:0; background:var(--accent-soft); color:var(--accent); letter-spacing:0}
+.ev-exp-hint{font-size:12px; font-weight:700; color:var(--warn)}
+.ev-exp-hint[hidden]{display:none}
+@media (max-width: 560px){ .ev-exp{grid-area:auto; grid-column:1/-1} }
+

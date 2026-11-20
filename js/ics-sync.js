@@ -91,3 +91,31 @@ export function planExport(items, snapshot, { now = new Date(), mode = "merge" }
   }
   return { seq, snapshot: { at: now.toISOString(), items: next } };
 }
+
+const TERM = { rejected: "不合格", declined: "辞退" };
+/**
+ * Calendar-visible changes to exported events caused by one edit.
+ * before/after: the company record before and after (after = null when the
+ * company was deleted). Only UIDs present in the export snapshot count.
+ * Returns [{type:"changed"|"removed", uid, before:{at,label,company}, after?:{at,label}, reason?}].
+ */
+export function exportedChanges(before, after, snapshot) {
+  const snap = cleanSnapshot(snapshot);
+  if (!before || !snap.at) return [];
+  const out = [];
+  for (const e of before.events || []) {
+    const uid = uidFor(before, e);
+    if (!snap.items[uid] || e.done || isTerm(before.stage)) continue; // only what was live before this edit
+    const was = fingerprint(before, e);
+    let reason = "";
+    const ae = after ? (after.events || []).find((x) => x.id === e.id) : null;
+    if (!after) reason = "企業を削除";
+    else if (isTerm(after.stage)) reason = TERM[after.stage];
+    else if (!ae) reason = "予定を削除";
+    else if (ae.done) reason = "完了";
+    if (reason) { out.push({ type: "removed", uid, reason, before: { at: was.at, label: was.label, company: was.company } }); continue; }
+    const now = fingerprint(after, ae);
+    if (now.k !== was.k) out.push({ type: "changed", uid, before: { at: was.at, label: was.label, company: was.company }, after: { at: now.at, label: now.label, company: now.company } });
+  }
+  return out;
+}

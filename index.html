@@ -134,6 +134,7 @@
 
   <section class="panel" id="ics-panel" aria-labelledby="ics-h" hidden>
     <h2 id="ics-h">カレンダーに書き出し</h2>
+    <p class="ics-copy">.ics は書き出した時点のコピーです。あとで就活ボードの予定を変えても、カレンダーアプリの予定は自動では変わりません。</p>
     <p>予定を .ics ファイルにして、iPhone や Google カレンダーなどに取り込めます。通知（リマインダー）はカレンダーアプリが出します。</p>
     <div class="ics-diff" id="ics-diff" aria-live="polite"></div>
     <div class="ics-opts">
@@ -477,6 +478,14 @@
     </div>
   </form>
 </dialog>
+
+<div class="change-notice" id="change-notice" role="status" aria-live="polite" hidden>
+  <div class="cn-body" id="cn-body"></div>
+  <div class="cn-btns">
+    <button type="button" class="btn small primary" id="btn-cn-open">書き出しを開く</button>
+    <button type="button" class="btn small ghost" id="btn-cn-close">閉じる</button>
+  </div>
+</div>
 
 <div class="tour" id="tour" hidden>
   <div class="tour-block" id="tour-block"></div>
