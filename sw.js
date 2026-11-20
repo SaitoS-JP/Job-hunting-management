@@ -1,7 +1,7 @@
 /* 就活ボード service worker — offline app shell. Bump VERSION on every release. */
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL_CACHE = "shukatsu-shell-" + VERSION;
-const FONT_CACHE = "shukatsu-fonts";
+const FONT_CACHE = "shukatsu-fonts-v2";
 const SHELL = [
   "./",
   "./index.html",
@@ -13,6 +13,7 @@ const SHELL = [
   "./icons/icon-512.png",
   "./icons/icon-512-maskable.png",
   "./icons/favicon-32.png",
+  "./fonts/fonts.css",
 ];
 
 self.addEventListener("install", (event) => {
@@ -22,7 +23,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("shukatsu-shell-") && k !== SHELL_CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => (k.startsWith("shukatsu-shell-") && k !== SHELL_CACHE) || k === "shukatsu-fonts").map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -44,12 +45,13 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
 
-  // Google Fonts: optional; keep a copy for offline use
-  if (url.origin === "https://fonts.googleapis.com" || url.origin === "https://fonts.gstatic.com") {
-    event.respondWith(staleWhileRevalidate(req, FONT_CACHE));
+  if (url.origin !== self.location.origin) return;
+
+  // Font files: bundled with the app; keep each piece once it has been used
+  if (/\/fonts\/.+\.woff2$/.test(url.pathname)) {
+    event.respondWith(caches.open(FONT_CACHE).then((c) => c.match(req).then((r) => r || fetch(req).then((res) => { if (res && res.ok) c.put(req, res.clone()); return res; }))));
     return;
   }
-  if (url.origin !== self.location.origin) return;
 
   // Pages: network first so updates arrive, cached shell when offline
   if (req.mode === "navigate") {
