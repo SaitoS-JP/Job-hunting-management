@@ -20,9 +20,9 @@ export function renderEditor(kind) {
     <li class="sed-row">
       <span class="sed-n num">${i + 1}</span>
       <input class="input sed-in" id="${kind}-label-${sid}" value="${lab}" maxlength="${MAX_LABEL}" autocomplete="off" aria-label="${i + 1}番目の段階名" data-ed="${kind}" data-op="rename" data-i="${i}">
-      <button type="button" class="sed-offer" id="${kind}-offer-${sid}" data-ed="${kind}" data-op="offer" data-i="${i}" aria-pressed="${s.offer === true}" aria-label="${lab}を内定にあたる段階にする" title="内定にあたる段階">内定</button>
-      <button type="button" class="sed-b" id="${kind}-up-${sid}" data-ed="${kind}" data-op="up" data-i="${i}" aria-label="${lab}を上へ"${i === 0 ? " disabled" : ""}>↑</button>
-      <button type="button" class="sed-b" id="${kind}-down-${sid}" data-ed="${kind}" data-op="down" data-i="${i}" aria-label="${lab}を下へ"${i === n - 1 ? " disabled" : ""}>↓</button>
+      <button type="button" class="sed-offer" id="${kind}-offer-${sid}" data-ed="${kind}" data-op="offer" data-i="${i}" aria-pressed="${s.offer === true}" aria-label="${lab}を内定にあたる段階にする" title="内定にあたる段階（もう一度押すと外れます）">内定</button>
+      <button type="button" class="sed-b" id="${kind}-up-${sid}" data-ed="${kind}" data-op="up" data-i="${i}" aria-label="${lab}を上へ" title="上へ"${i === 0 ? " disabled" : ""}>↑</button>
+      <button type="button" class="sed-b" id="${kind}-down-${sid}" data-ed="${kind}" data-op="down" data-i="${i}" aria-label="${lab}を下へ" title="下へ"${i === n - 1 ? " disabled" : ""}>↓</button>
       <button type="button" class="sed-b" id="${kind}-ins-${sid}" data-ed="${kind}" data-op="ins" data-i="${i}" aria-label="${lab}の下に段階を追加" title="この下に追加"${n >= MAX_STAGES ? " disabled" : ""}>＋</button>
       <button type="button" class="sed-b del" id="${kind}-del-${sid}" data-ed="${kind}" data-op="del" data-i="${i}" aria-label="${lab}を削除" title="削除"${n <= 1 ? " disabled" : ""}>✕</button>
     </li>`;

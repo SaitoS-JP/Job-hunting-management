@@ -473,3 +473,21 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
 }
 .fld .es-meta .es-limit{width:6.5em; flex:none}
 .es-meta label{white-space:nowrap}
+
+/* ---- simplified add form ---- */
+.first-ev{display:grid; grid-template-columns:10em 7.5em minmax(0,1fr); gap:6px}
+.first-ev .input{width:100%; min-width:0}
+.more{border:1px solid var(--rule); border-radius:var(--r); background:var(--surface)}
+.more > summary{cursor:pointer; min-height:40px; display:flex; align-items:center; flex-wrap:wrap; gap:0 6px; padding:6px 12px; font-weight:700; font-size:13px; color:var(--accent); list-style:none}
+.more > summary::-webkit-details-marker{display:none}
+.more > summary::before{content:"＋"; font-weight:700}
+.more[open] > summary::before{content:"−"}
+.more > summary .hint{font-weight:400}
+.more-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 14px; padding:4px 12px 12px}
+.more-grid .full{grid-column:1/-1}
+
+@media (max-width: 560px){
+  .first-ev{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+  .first-ev #c-first-label{grid-column:1/-1}
+  .more-grid{grid-template-columns:minmax(0,1fr); padding:4px 10px 10px}
+}

@@ -111,7 +111,7 @@ export function initDialog(app) {
   }
   function renderEvents() {
     const list = $("ev-list");
-    if (!S.draftEvents.length) { list.innerHTML = `<li class="ev-empty hint">予定はまだありません。締切や面接日を追加すると、一覧と「直近の予定」に表示されます。</li>`; return; }
+    if (!S.draftEvents.length) { list.innerHTML = `<li class="ev-empty hint">締切や面接の日付を入れておくと、一覧と「直近の予定」に近い順で並びます。<br>例：ES締切 11/30 23:59、一次面接 12/3 14:00</li>`; return; }
     list.innerHTML = S.draftEvents.map((r) => {
       const id = esc(r.id);
       return `<li class="ev-row${r.done ? " is-done" : ""}" data-ev="${id}">
@@ -222,7 +222,8 @@ export function initDialog(app) {
 
   /* ---------- open / close ---------- */
   /** id: edit that company. from: prefill a new selection from another company. */
-  function openDialog(id, from = null) {
+  /** opts.tab: open on that tab (e.g. "events"). */
+  function openDialog(id, from = null, opts = {}) {
     const c = id ? byId(id) : null;
     S.editingId = c ? c.id : null;
     S.draftStages = cloneStages(c ? c.stages : S.template);
@@ -243,7 +244,11 @@ export function initDialog(app) {
     $("c-memo").value = c ? c.memo : "";
     for (const k of ["form-err", "cs-err", "ev-err", "es-err", "iv-err", "ev-ics-msg"]) $(k).textContent = "";
     $("sibling-wrap").hidden = !c;
-    picker.close(); esEd.render(); ivEd.render(); refreshIvTitles(); updateTabCounts(); showTab("basic");
+    picker.close(); esEd.render(); ivEd.render(); refreshIvTitles(); updateTabCounts(); showTab(opts.tab || "basic");
+    // new companies start with only the essentials; details stay open when editing
+    $("more").open = !!(c || from);
+    $("first-ev").hidden = !!c;
+    for (const k of ["c-first-date", "c-first-time", "c-first-label"]) $(k).value = "";
     $("del-confirm").hidden = true;
     $("btn-delete").hidden = !c;
     setStageEditorOpen(false);
@@ -262,7 +267,8 @@ export function initDialog(app) {
     updateUrlLink();
     if (!dlg.open) { if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", ""); }
     const focusId = from ? "c-kind" : "c-name";
-    if (from || !matchMedia("(pointer: coarse)").matches) setTimeout(() => $(focusId).focus(), 0);
+    if (opts.tab === "events") setTimeout(() => $("btn-ev-add").focus(), 0);
+    else if (from || !matchMedia("(pointer: coarse)").matches) setTimeout(() => $(focusId).focus(), 0);
   }
   /* copy the source icon so both selections can change it independently */
   $("btn-sibling").addEventListener("click", async () => {
@@ -296,10 +302,15 @@ export function initDialog(app) {
     const name = $("c-name").value.trim();
     if (!name) return fail("社名を入力してください。", "c-name", "basic");
     const url = $("c-url").value.trim();
-    if (url && !/^https?:\/\/\S+$/i.test(url)) return fail("マイページURLは http:// または https:// から始めてください。", "c-url", "basic");
+    if (url && !/^https?:\/\/\S+$/i.test(url)) { $("more").open = true; return fail("マイページURLは http:// または https:// から始めてください。", "c-url", "basic"); }
     const chk = checkStages(S.draftStages);
-    if (chk.error) { showTab("basic"); setStageEditorOpen(true); $("cs-err").textContent = chk.error; return fail("選考段階の編集欄を確認してください。"); }
-    const ev = eventsFromRows(S.draftEvents, fromInputs);
+    if (chk.error) { showTab("basic"); $("more").open = true; setStageEditorOpen(true); $("cs-err").textContent = chk.error; return fail("選考段階の編集欄を確認してください。"); }
+    // the optional 「次の予定」 row of a new company becomes its first event
+    const firstRow = { id: newEventId(), date: $("c-first-date").value, time: $("c-first-time").value, label: $("c-first-label").value, done: false };
+    const isNew = !editing();
+    if (isNew && (firstRow.time || firstRow.label.trim()) && !firstRow.date) return fail("「次の予定」の日付を入れてください（予定がなければ空欄のままで大丈夫です）。", "c-first-date", "basic");
+    const ev = eventsFromRows(isNew ? [...S.draftEvents, firstRow] : S.draftEvents, fromInputs);
+    if (ev.error && ev.id === firstRow.id) return fail("「次の予定」の日付または時刻が正しくありません。", "c-first-date", "basic");
     if (ev.error) { $("ev-err").textContent = ev.error; return fail("「予定」の欄を確認してください。", ev.id ? `ev-date-${ev.id}` : null, "events"); }
     const badLimit = S.draftES.find((r) => String(r.limit ?? "").trim() && normalizeLimit(r.limit) === null);
     if (badLimit) { $("es-err").textContent = "文字数制限は1〜10000の整数で入れてください（なしなら空欄）。"; return fail("「ES」の欄を確認してください。", `es-l-${badLimit.id}`, "es"); }
@@ -344,5 +355,5 @@ export function initDialog(app) {
     finally { $("btn-delete-confirm").disabled = false; }
   });
 
-  return { openDialog };
+  return { openDialog, showTab };
 }

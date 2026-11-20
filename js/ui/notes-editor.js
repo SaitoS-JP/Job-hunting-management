@@ -3,7 +3,7 @@ import { $, esc } from "./html.js";
 import { NOTE_LIMITS, newNoteId, esCount, limitStatus, normalizeLimit } from "../notes.js";
 
 const L = NOTE_LIMITS;
-const EMPTY = { es: "まだありません。「＋ ESの設問を追加」から設問と回答を残せます。", iv: "まだありません。面接のあとに、聞かれた質問と振り返りを残しておきましょう。" };
+const EMPTY = { es: "提出したESの設問と回答を残しておくと、面接前の見直しや他社のESに使えます。例：志望動機（400字）", iv: "面接のあとに、聞かれた質問と振り返りを残しておくと次の面接に生かせます。例：一次面接 — 聞かれた質問「学生時代に力を入れたこと」" };
 
 function esRow(r) {
   const id = esc(r.id);

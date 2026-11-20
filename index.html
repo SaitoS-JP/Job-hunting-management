@@ -194,7 +194,7 @@
     <div class="dlg-top">
       <div class="dlg-h">
         <div class="ttl"><span id="dlg-icon"></span><div class="ttl-t"><h2 id="dlg-title">企業を追加</h2><span class="chip kind" id="dlg-kind" hidden></span></div></div>
-        <button type="button" class="icon-x" id="btn-dlg-close" aria-label="閉じる">×</button>
+        <button type="button" class="icon-x" id="btn-dlg-close" aria-label="閉じる" title="閉じる">×</button>
       </div>
       <div class="dlg-tabs" role="tablist" aria-label="編集する内容">
         <button type="button" role="tab" id="tab-basic" aria-controls="pane-basic" aria-selected="true">基本</button>
@@ -210,6 +210,10 @@
         <input class="input" id="c-name" name="name" required maxlength="80" autocomplete="off">
       </div>
       <div class="fld">
+        <label for="c-position">職種・コース</label>
+        <input class="input" id="c-position" name="position" maxlength="80" autocomplete="off" placeholder="例：総合職 / エンジニア職">
+      </div>
+      <div class="fld">
         <label for="c-kind">選考の種類</label>
         <input class="input" id="c-kind" name="kind" maxlength="20" autocomplete="off" list="kind-suggest" placeholder="本選考">
         <datalist id="kind-suggest">
@@ -217,10 +221,23 @@
           <option value="ウィンターインターン"></option><option value="早期選考"></option><option value="その他"></option>
         </datalist>
       </div>
-      <div class="fld">
-        <label for="c-position">職種・コース</label>
-        <input class="input" id="c-position" name="position" maxlength="80" autocomplete="off" placeholder="例：総合職 / エンジニア職">
+      <div class="fld full">
+        <label for="c-stage">今の段階</label>
+        <select class="select" id="c-stage" name="stage"></select>
+        <div class="steps-scroll" id="dlg-steps"></div>
       </div>
+      <div class="fld full" id="first-ev">
+        <span class="section-h" id="first-ev-h">次の予定（任意）</span>
+        <div class="first-ev" role="group" aria-labelledby="first-ev-h">
+          <input type="date" class="input" id="c-first-date" aria-label="次の予定の日付">
+          <input type="time" class="input" id="c-first-time" aria-label="次の予定の時刻（任意）">
+          <input class="input" id="c-first-label" list="label-suggest" maxlength="40" autocomplete="off" placeholder="内容（例：ES締切）" aria-label="次の予定の内容">
+        </div>
+        <span class="hint">締切や面接日を入れておくと「直近の予定」に並びます。あとから「予定」タブで追加もできます。</span>
+      </div>
+      <details class="fld full more" id="more">
+        <summary id="more-sum">詳しく入力する<span class="hint">（業界・志望度・マイページURL・アイコン・メモ・段階の編集）</span></summary>
+        <div class="more-grid">
       <div class="fld">
         <label for="c-industry">業界</label>
         <input class="input" id="c-industry" name="industry" maxlength="40" autocomplete="off" placeholder="例：IT・通信">
@@ -234,9 +251,7 @@
         </select>
       </div>
       <div class="fld full">
-        <label for="c-stage">選考段階</label>
-        <select class="select" id="c-stage" name="stage"></select>
-        <div class="steps-scroll" id="dlg-steps"></div>
+        <span class="section-h">選考段階の並び</span>
         <button type="button" class="linkbtn" id="btn-cs-toggle" aria-expanded="false" aria-controls="cs-box">この企業の選考段階を編集</button>
         <div class="cs-box" id="cs-box" hidden>
           <p class="hint" style="margin:0">この企業だけの段階の並びです（例：三次面接を足す、Webテストを消す）。保存すると反映されます。</p>
@@ -266,6 +281,8 @@
         <label for="c-memo">メモ</label>
         <textarea class="input" id="c-memo" name="memo" maxlength="4000" placeholder="選考の感触、聞かれたこと、持ち物など"></textarea>
       </div>
+        </div>
+      </details>
       <div class="fld full" id="sibling-wrap" hidden>
         <button type="button" class="btn small" id="btn-sibling">＋ 同じ企業で別の選考を追加</button>
         <span class="hint">社名・業界・志望度・URL・アイコンを引き継いだ新しい選考を作ります（インターンと本選考を分けて管理するときなど）。</span>
@@ -341,7 +358,7 @@
       <div class="fld full" id="hist-wrap">
         <span class="section-h">選考の履歴</span>
         <ol class="timeline" id="hist"></ol>
-        <p class="hint" id="hist-empty">保存すると、段階を変えるたびにここへ記録されます。</p>
+        <p class="hint" id="hist-empty">段階を変えるたびに、日付つきでここに記録されます。例：11/20 エントリー → 11/28 ES・書類選考<br>段階は一覧の「次へ →」か、「基本」タブの「今の段階」で変えられます。</p>
       </div>
     </div>
     <p class="form-err" id="form-err" role="alert"></p>

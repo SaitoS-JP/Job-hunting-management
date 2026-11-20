@@ -55,9 +55,9 @@ export function calendarHTML(companies, state, { iconUrl, now = new Date() }) {
 
   return `<section class="cal" aria-label="カレンダー">
     <div class="cal-h">
-      <button type="button" class="btn cal-nav" data-act="cal-prev" id="cal-prev" aria-label="前の月">‹</button>
+      <button type="button" class="btn cal-nav" data-act="cal-prev" id="cal-prev" aria-label="前の月" title="前の月">‹</button>
       <h2 class="cal-title" id="cal-title" aria-live="polite">${state.y}年${state.m + 1}月</h2>
-      <button type="button" class="btn cal-nav" data-act="cal-next" id="cal-next" aria-label="次の月">›</button>
+      <button type="button" class="btn cal-nav" data-act="cal-next" id="cal-next" aria-label="次の月" title="次の月">›</button>
       <button type="button" class="btn small" data-act="cal-today" id="cal-today">今日</button>
     </div>
     <div class="cal-grid" role="grid" aria-labelledby="cal-title">
