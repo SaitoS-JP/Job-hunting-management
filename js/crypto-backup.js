@@ -66,7 +66,8 @@ export function checkEnvelope(env) {
 
 async function deriveKey(password, salt, iterations, usage) {
   const s = subtle();
-  const base = await s.importKey("raw", new TextEncoder().encode(String(password)), "PBKDF2", false, ["deriveKey"]);
+  // NFC so the same password typed on different devices/keyboards gives the same key
+  const base = await s.importKey("raw", new TextEncoder().encode(String(password).normalize("NFC")), "PBKDF2", false, ["deriveKey"]);
   return s.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, base, { name: "AES-GCM", length: 256 }, false, [usage]);
 }
 

@@ -69,3 +69,11 @@ test("password strength hint", () => {
   assert.equal(passwordStrength("Abcdefgh123!").level, 3);
   assert.equal(passwordStrength("あいうえおかきくけこさしすせそた").level, 1); // one kind only
 });
+
+test("the same password in composed or decomposed Unicode opens the file", async () => {
+  const composed = "しゅうかつパスワード";            // ず etc. as single code points
+  const decomposed = composed.normalize("NFD");        // e.g. how some keyboards send voiced kana
+  assert.notEqual(composed, decomposed);
+  const env = await encryptBackup('{"ok":true}', composed, { iterations: 100000 });
+  assert.equal(await decryptBackup(env, decomposed), '{"ok":true}');
+});
