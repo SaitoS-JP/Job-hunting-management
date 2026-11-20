@@ -2,7 +2,7 @@
 import { $, esc } from "./html.js";
 import { iconHTML } from "../icons.js";
 import { fmtDate } from "../dates.js";
-import { upcomingEvents, pendingEvents } from "../events.js";
+import { agenda, pendingEvents } from "../events.js";
 import { isTerm, atLast, isActive, stageLabel } from "../model.js";
 import { dueBadgeHTML } from "./list.js";
 
@@ -22,15 +22,24 @@ export function renderStats(all) {
     <div class="stagebar" role="img" aria-label="選考中 ${active}・内定 ${offer}・不合格 ${rej}・辞退 ${dec}">${bar}</div>`;
 }
 
-export function renderUpcoming(all, iconUrl, now = new Date()) {
-  const items = upcomingEvents(all, { now, include: (c) => !isTerm(c.stage) });
-  const el = $("upcoming");
-  if (!items.length) {
-    el.innerHTML = `<li class="up-empty">${all.length ? "未完了の予定はありません。編集画面の「予定」で追加するとここに出ます。" : "企業を登録すると、締切や面接日が日付順に並びます。"}</li>`;
-    return;
-  }
-  el.innerHTML = items.map(({ company: c, event: e, date: d }) => `<li><button type="button" class="up-item" data-act="edit" data-id="${esc(c.id)}">
+function itemHTML({ company: c, event: e, date: d }, iconUrl, now, doneBtn) {
+  return `<li class="up-row"><button type="button" class="up-item" data-act="edit" data-id="${esc(c.id)}">
       <span class="up-date">${esc(fmtDate(d))}</span>
       <span class="up-what" style="display:flex;align-items:center;gap:7px">${iconHTML(c.name, iconUrl(c.iconId), 20)}<span style="min-width:0;overflow:hidden;text-overflow:ellipsis"><b>${esc(c.name)}</b><span>${esc(e.label || stageLabel(c))}</span></span></span>
-      ${dueBadgeHTML(d, now)}</button></li>`).join("");
+      ${dueBadgeHTML(d, now)}</button>${doneBtn ? `<button type="button" class="qa up-done" data-act="ev-done" data-id="${esc(c.id)}" data-ev="${esc(e.id)}" aria-label="${esc(c.name)}の${esc(e.label || "予定")}を完了にする">完了</button>` : ""}</li>`;
+}
+
+export function renderUpcoming(all, iconUrl, now = new Date()) {
+  const { upcoming, overdue, overdueTotal } = agenda(all, { now, include: (c) => !isTerm(c.stage) });
+  const el = $("upcoming");
+  let html = upcoming.length
+    ? upcoming.map((x) => itemHTML(x, iconUrl, now, false)).join("")
+    : `<li class="up-empty">${all.length ? "今日以降の未完了の予定はありません。編集画面の「予定」で追加するとここに出ます。" : "企業を登録すると、締切や面接日が日付順に並びます。"}</li>`;
+  if (overdueTotal) {
+    const rest = overdueTotal - overdue.length;
+    html += `<li class="up-sub" role="presentation">期限切れ・未完了 <span class="num">${overdueTotal}</span>件<span class="hint">　済んだものは「完了」にすると消えます</span></li>`
+      + overdue.map((x) => itemHTML(x, iconUrl, now, true)).join("")
+      + (rest > 0 ? `<li class="up-more">ほか <span class="num">${rest}</span>件（各企業の編集画面で確認できます）</li>` : "");
+  }
+  el.innerHTML = html;
 }

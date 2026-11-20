@@ -1,4 +1,5 @@
 /* 就活ボード — entry point. All data stays on this device (IndexedDB). */
+import { withEventDone } from "./events.js";
 import { $, esc } from "./ui/html.js";
 import { openStore, createMemoryStore } from "./store.js";
 import { DEFAULT_STAGES, cloneStages, cleanStages, normalize, isTerm, isActive, colorAt, withStage, nextStageId, prevStageId, restoreStageId } from "./model.js";
@@ -137,7 +138,13 @@ document.addEventListener("click", (e) => {
   else if (act === "back") changeStage(c, prevStageId(c));
   else if (act === "restore") changeStage(c, restoreStageId(c));
   else if ((act === "rejected" || act === "declined") && !isTerm(c.stage)) changeStage(c, act);
+  else if (act === "ev-done") markEventDone(c, b.dataset.ev);
 });
+async function markEventDone(c, eventId) {
+  const next = withEventDone(c, eventId);
+  if (next === c) return;
+  try { await saveRecord(next); await reload(); } catch (e) { showErr(errText(e)); }
+}
 $("btn-add").addEventListener("click", () => openDialog(null));
 let qt;
 $("q").addEventListener("input", (e) => { clearTimeout(qt); qt = setTimeout(() => { S.q = e.target.value; render(); }, 120); });

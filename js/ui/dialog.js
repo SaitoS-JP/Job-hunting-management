@@ -84,13 +84,8 @@ export function initDialog(app) {
     if (f === "done") li.classList.toggle("is-done", r.done);
     $("ev-err").textContent = "";
   });
-  $("ev-list").addEventListener("change", (e) => {
-    if (e.target.dataset.evf !== "date" && e.target.dataset.evf !== "time") return;
-    const focusId = e.target.id;
-    const before = S.draftEvents.map((r) => r.id).join();
-    sortDraftEvents();
-    if (S.draftEvents.map((r) => r.id).join() !== before) { renderEvents(); const el = $(focusId); if (el) el.focus(); }
-  });
+  /* Rows keep their place while editing (no jumping after a date is picked);
+     they are sorted by date when saved and when the dialog opens. */
   $("ev-list").addEventListener("click", (e) => {
     const b = e.target.closest("[data-evdel]"); if (!b) return;
     const i = S.draftEvents.findIndex((r) => r.id === b.dataset.evdel); if (i < 0) return;

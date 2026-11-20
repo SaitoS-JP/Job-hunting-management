@@ -104,6 +104,12 @@ a{color:var(--accent)}
 .up-what b{font-weight:700}
 .up-what span span{color:var(--ink-2); margin-left:6px}
 .up-empty{color:var(--ink-3); font-size:13px; padding:6px 0}
+.up-row{display:flex; align-items:center; gap:6px}
+.up-row .up-item{flex:1 1 auto; min-width:0}
+.up-done{flex:none; min-height:32px}
+.up-list li.up-sub{border-top:1px solid var(--line); margin-top:6px; padding:8px 2px 2px; font-size:12px; font-weight:700; color:var(--danger)}
+.up-sub .hint{font-weight:400}
+.up-list li.up-more{border-top:0; font-size:12px; color:var(--ink-3); padding:2px 2px 4px}
 
 /* days badge */
 .due{display:inline-flex; align-items:center; font-size:11px; font-weight:700; padding:1px 7px; border-radius:3px; white-space:nowrap; background:var(--surface-2); color:var(--ink-2); border:1px solid transparent}

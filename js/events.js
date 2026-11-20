@@ -49,16 +49,28 @@ export function nearestTime(c, now = new Date()) {
 }
 
 /** Next `limit` not-done events across companies, overdue up to `overdueDays`. */
-export function upcomingEvents(companies, { now = new Date(), limit = 5, overdueDays = 14, include = () => true } = {}) {
-  const out = [];
+/** Summary agenda, split so overdue items never push out what is coming up.
+    upcoming: today or later, soonest first (up to `limit`).
+    overdue: before today and not done, most recent first (up to `overdueLimit`);
+    overdueTotal counts all of them. */
+export function agenda(companies, { now = new Date(), limit = 5, overdueLimit = 3, include = () => true } = {}) {
+  const up = [], over = [];
   for (const c of companies) {
     if (!include(c)) continue;
     for (const e of pendingEvents(c)) {
       const d = parseDate(e.at);
-      if (dayDiff(d, now) >= -overdueDays) out.push({ company: c, event: e, date: d });
+      (dayDiff(d, now) >= 0 ? up : over).push({ company: c, event: e, date: d });
     }
   }
-  return out.sort((a, b) => a.date - b.date).slice(0, limit);
+  up.sort((a, b) => a.date - b.date);
+  over.sort((a, b) => b.date - a.date);
+  return { upcoming: up.slice(0, limit), overdue: over.slice(0, overdueLimit), overdueTotal: over.length };
+}
+
+/** Mark one event done (pure). Returns the same object if nothing changes. */
+export function withEventDone(c, eventId, now = new Date()) {
+  if (!(c.events || []).some((e) => e.id === eventId && !e.done)) return c;
+  return { ...c, events: c.events.map((e) => (e.id === eventId ? { ...e, done: true } : e)), updatedAt: now.toISOString() };
 }
 
 /** Dialog rows {id,date,time,label,done} -> events, or {error}. Empty rows are dropped. */
