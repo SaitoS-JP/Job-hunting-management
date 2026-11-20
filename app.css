@@ -170,7 +170,13 @@ a{color:var(--accent)}
 .steps li > span{overflow:hidden; text-overflow:ellipsis; min-width:0}
 /* stage list editor */
 .sed{list-style:none; margin:6px 0 0; padding:0; display:flex; flex-direction:column; gap:6px}
-.sed-row{display:grid; grid-template-columns:22px minmax(0,1fr) repeat(4,34px); gap:4px; align-items:center}
+.sed-row{display:grid; grid-template-columns:22px minmax(0,1fr) auto repeat(4,34px); gap:4px; align-items:center}
+.sed-offer{min-height:34px; padding:0 9px; border:1px dashed var(--line); border-radius:4px; background:var(--surface); color:var(--ink-3); font-size:12px; font-weight:500; white-space:nowrap}
+.sed-offer:hover{color:var(--ink); border-style:solid}
+.sed-offer[aria-pressed="true"]{border:1px solid var(--st-offer); background:color-mix(in srgb, var(--st-offer) 16%, var(--surface)); color:var(--st-offer); font-weight:700}
+.sed-offer[aria-pressed="true"]::before{content:"✓ "}
+.sed-hint{margin:8px 0 0}
+.sed-note{margin:6px 0 0; padding:6px 10px; border-radius:var(--r); background:var(--warn-soft); color:var(--ink); font-size:12.5px}
 .sed-n{font-size:12px; color:var(--ink-3); text-align:right}
 .sed-in{min-height:34px; width:100%}
 .sed-b{min-height:34px; border:1px solid var(--line); background:var(--surface); border-radius:4px; color:var(--ink-2); padding:0; font-size:14px; line-height:1}
@@ -293,7 +299,10 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
   .input,.select,textarea.input{font-size:16px}
   .lrow{padding:12px 14px}
   .lrow .acts .qa{min-height:38px; padding:6px 12px; font-size:13px}
-  .sed-row{grid-template-columns:18px minmax(0,1fr) repeat(4,36px)}
+  .sed-row{grid-template-columns:18px minmax(0,1fr) repeat(4,38px); grid-template-areas:"n in in in in in" ". off up dn ins del"; row-gap:6px; padding-bottom:6px; border-bottom:1px dashed var(--rule)}
+  .sed-n{grid-area:n} .sed-in{grid-area:in}
+  .sed-offer{grid-area:off; justify-self:start; min-height:38px}
+  .sed-row [data-op="up"]{grid-area:up} .sed-row [data-op="down"]{grid-area:dn} .sed-row [data-op="ins"]{grid-area:ins} .sed-row [data-op="del"]{grid-area:del}
   .sed-b,.sed-in{min-height:38px}
   .ev-row{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) auto; grid-template-areas:"date time del" "label label done"; gap:6px; padding-bottom:8px; border-bottom:1px dashed var(--rule)}
   .ev-del{width:38px; min-height:38px; justify-self:end}
@@ -429,3 +438,38 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
   .ics-opts{display:block}
   .ics-opts fieldset{margin-bottom:8px}
 }
+
+/* ---- ES limit counter, copy, picker ---- */
+.es-meta{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-2)}
+.es-limit{width:6.5em; min-height:32px}
+.note-f{flex-wrap:wrap; align-items:center; gap:6px 10px; justify-content:space-between}
+.es-count{font-size:12px; color:var(--ink-2)}
+.es-count.over{color:var(--danger); font-weight:700}
+.es-rest{margin-left:8px; font-family:var(--font-body); font-size:11.5px}
+.es-acts{display:flex; flex-wrap:wrap; gap:6px; margin-left:auto}
+.es-msg{margin:0; min-height:0}
+.es-msg:empty{display:none}
+.picker{border:1px solid var(--line); border-radius:var(--r); padding:10px; background:var(--surface-2)}
+.picker-h{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px}
+.picker-h h3{margin:0; font-size:14px}
+#es-picker-q{width:100%}
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0}
+.chip-btn{min-height:32px; padding:3px 12px; border:1px solid var(--line); border-radius:999px; background:var(--surface); color:var(--ink-2); font-size:12.5px}
+.chip-btn[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--bg)}
+.picker-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; max-height:48vh; overflow:auto}
+.pick-item{display:flex; flex-direction:column; gap:2px; width:100%; text-align:left; padding:8px 10px; border:1px solid var(--line); border-radius:var(--r); background:var(--surface); color:var(--ink)}
+.pick-item:hover{border-color:var(--accent)}
+.pick-co{display:flex; flex-wrap:wrap; align-items:center; gap:2px 0; margin:0; font-size:13px}
+.pick-q{margin:0; font-size:12.5px; color:var(--ink-2); font-weight:500}
+.pick-n{margin-left:8px; font-size:11.5px; color:var(--ink-3); font-weight:400}
+.pick-a{font-size:12.5px; color:var(--ink-2); display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; line-clamp:3; overflow:hidden; white-space:pre-wrap}
+.pick-full{white-space:pre-wrap; font-size:13.5px; line-height:1.7; padding:10px; margin:6px 0 10px; border-radius:var(--r); background:var(--surface); border:1px solid var(--line); max-height:40vh; overflow:auto}
+.pick-none{padding:6px 0}
+.picker-prev .confirm-row{margin-bottom:8px}
+@media (max-width: 560px){
+  .es-limit{min-height:38px}
+  .es-acts .qa{min-height:38px}
+  .chip-btn{min-height:36px}
+}
+.fld .es-meta .es-limit{width:6.5em; flex:none}
+.es-meta label{white-space:nowrap}

@@ -14,7 +14,7 @@ export function stepsHTML(stages, stage, r, large) {
     return `<li class="${cls}"${i === r ? ' aria-current="step"' : ""} title="${esc(s.label)}"><span>${esc(txt)}</span></li>`;
   }).join("");
   const label = term ? `${TERM_LABEL[stage]}${r >= 0 ? `（${stages[r].label}で終了）` : ""}` : `${r >= 0 ? stages[r].label : ""}（${r + 1}/${n}）`;
-  const col = term ? termColor(stage) : colorAt(r, n);
+  const col = term ? termColor(stage) : colorAt(r, stages);
   return `<ol class="steps${large ? " lg" : ""} ${kcls}" style="--sc:${col};min-width:${n * (large ? 72 : 64)}px" aria-label="選考の進み具合：${esc(label)}">${items}</ol>`;
 }
 

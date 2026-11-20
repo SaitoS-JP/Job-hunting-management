@@ -23,7 +23,8 @@ test("v2 backup (stages + template, no events) migrates", () => {
   const stages = [{ id: "s1", label: "エントリー" }, { id: "s2", label: "面接" }, { id: "s3", label: "内定" }];
   const v = validateBackup(file({ version: 2, template: { stages }, companies: [{ id: "a", name: "社", stages, stage: "s2" }] }));
   assert.equal(v.ok, true);
-  assert.deepEqual(v.template, stages);
+  assert.deepEqual(v.template.map((s) => s.label), stages.map((s) => s.label));
+  assert.equal(v.template[2].offer, true); // label 内定 migrates to the offer stage
   assert.deepEqual(v.companies[0].events, []);
 });
 test("v3 roundtrip keeps events, stages and icons", () => {

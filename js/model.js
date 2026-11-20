@@ -10,8 +10,8 @@ export const DEFAULT_STAGES = Object.freeze([
   { id: "gd", label: "GD・一次面接" },
   { id: "interview2", label: "二次面接" },
   { id: "final", label: "最終面接" },
-  { id: "offer", label: "内定" },
-].map(Object.freeze));
+  { id: "offer", label: "内定", offer: true },
+].map((s) => Object.freeze({ offer: false, ...s })));
 const DEFAULT_LABEL = Object.fromEntries(DEFAULT_STAGES.map((s) => [s.id, s.label]));
 export const TERM_LABEL = Object.freeze({ rejected: "不合格", declined: "辞退" });
 export const isTerm = (k) => k === "rejected" || k === "declined";
@@ -22,7 +22,7 @@ export const MAX_LABEL = 16;
 export const MAX_STAGES = 30;
 const PALETTE = ["interest", "entry", "es", "test", "gd", "interview2", "final"];
 
-export const cloneStages = (a) => a.map((s) => ({ id: s.id, label: s.label }));
+export const cloneStages = (a) => a.map((s) => ({ id: s.id, label: s.label, offer: s.offer === true }));
 
 export function newId(prefix) {
   const a = new Uint8Array(12);
@@ -32,9 +32,23 @@ export function newId(prefix) {
 }
 export const stageId = () => newId("s").slice(0, 9);
 
-/** Validate a stage list; null when nothing usable remains. */
+/**
+ * Which stage counts as 内定 in a list saved before the flag existed:
+ * the stage with id "offer", else the last one whose label contains 内定,
+ * else none. Never inferred from position alone.
+ */
+export function inferOfferIndex(list) {
+  const byId = list.findIndex((s) => s.id === "offer");
+  if (byId >= 0) return byId;
+  for (let i = list.length - 1; i >= 0; i--) if (String(list[i].label).includes("内定")) return i;
+  return -1;
+}
+/** Validate a stage list; null when nothing usable remains. Every stage gets
+    a boolean `offer`; at most one is true. Lists that never had the flag
+    (older data) are migrated with inferOfferIndex(). */
 export function cleanStages(arr) {
   if (!Array.isArray(arr)) return null;
+  const flagged = arr.some((s) => s && typeof s === "object" && typeof s.offer === "boolean");
   const seen = new Set(); const out = [];
   for (const s of arr) {
     if (!s || typeof s !== "object") continue;
@@ -42,20 +56,27 @@ export function cleanStages(arr) {
     if (!label) continue;
     let id = typeof s.id === "string" && STAGE_ID_RE.test(s.id) && !isTerm(s.id) ? s.id : stageId();
     while (seen.has(id)) id = stageId();
-    seen.add(id); out.push({ id, label });
+    seen.add(id); out.push({ id, label, offer: flagged && s.offer === true });
     if (out.length >= MAX_STAGES) break;
   }
-  return out.length ? out : null;
+  if (!out.length) return null;
+  const oi = flagged ? out.findIndex((x) => x.offer) : inferOfferIndex(out);
+  out.forEach((x, i) => { x.offer = i === oi; });
+  return out;
 }
+/** Index of the 内定 stage, or -1 when the list has none. */
+export const offerIndex = (stages) => stages.findIndex((s) => s.offer === true);
 export function labelIn(stages, id) {
   const s = stages.find((x) => x.id === id);
   if (s) return s.label;
   return TERM_LABEL[id] || DEFAULT_LABEL[id] || String(id || "");
 }
-/** Position colour token; the last stage keeps the offer green. */
-export function colorAt(i, n) {
+/** Colour token for stage i: the 内定 stage and anything after it are green,
+    the others follow their position. */
+export function colorAt(i, stages) {
   if (i < 0) return "var(--st-interest)";
-  if (i === n - 1) return "var(--st-offer)";
+  const oi = offerIndex(stages);
+  if (oi >= 0 && i >= oi) return "var(--st-offer)";
   return `var(--st-${PALETTE[i % PALETTE.length]})`;
 }
 export const termColor = (k) => (k === "rejected" ? "var(--st-rejected)" : "var(--st-declined)");
@@ -75,9 +96,15 @@ export function reachedFrom(stages, stage, history) {
 export const reached = (c) => reachedFrom(c.stages, c.stage, c.history);
 export const stageIndex = (c) => (isTerm(c.stage) ? -1 : c.stages.findIndex((s) => s.id === c.stage));
 export const atLast = (c) => !isTerm(c.stage) && stageIndex(c) === c.stages.length - 1;
-export const isActive = (c) => !isTerm(c.stage) && !atLast(c);
+/** 内定: at the flagged stage or any stage after it (e.g. 内定承諾). */
+export function isOffer(c) {
+  if (isTerm(c.stage)) return false;
+  const oi = offerIndex(c.stages);
+  return oi >= 0 && stageIndex(c) >= oi;
+}
+export const isActive = (c) => !isTerm(c.stage) && !isOffer(c);
 export const stageLabel = (c) => labelIn(c.stages, c.stage);
-export const stageColor = (c) => (isTerm(c.stage) ? termColor(c.stage) : colorAt(stageIndex(c), c.stages.length));
+export const stageColor = (c) => (isTerm(c.stage) ? termColor(c.stage) : colorAt(stageIndex(c), c.stages));
 export function progressRatio(c) {
   if (c.stage === "rejected") return -1;
   if (c.stage === "declined") return -2;
@@ -104,9 +131,15 @@ export function moveStage(list, i, dir) {
   const out = list.slice(); [out[i], out[j]] = [out[j], out[i]];
   return { list: out };
 }
+/** Mark stage i as 内定 (clearing any other), or clear it if already marked. */
+export function toggleOffer(list, i) {
+  if (i < 0 || i >= list.length) return { list };
+  const on = !list[i].offer;
+  return { list: list.map((s, k) => ({ ...s, offer: on && k === i })) };
+}
 export function insertStage(list, at, label = "新しい段階") {
   if (list.length >= MAX_STAGES) return { error: `段階は${MAX_STAGES}個までです。` };
-  const s = { id: stageId(), label };
+  const s = { id: stageId(), label, offer: false };
   const out = list.slice(); out.splice(Math.max(0, Math.min(at, list.length)), 0, s);
   return { list: out, added: s };
 }
@@ -126,8 +159,9 @@ export function checkStages(list) {
     const label = String(s.label || "").trim();
     if (!label) return { error: "段階名が空欄のところがあります。入力するか、その段階を削除してください。" };
     if (label.length > MAX_LABEL) return { error: `段階名は${MAX_LABEL}文字までです。` };
-    out.push({ id: s.id, label });
+    out.push({ id: s.id, label, offer: s.offer === true });
   }
+  if (out.filter((s) => s.offer).length > 1) return { error: "「内定」の印は1つの段階にだけ付けられます。" };
   return { stages: out };
 }
 

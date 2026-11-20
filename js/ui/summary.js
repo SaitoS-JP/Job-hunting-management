@@ -3,13 +3,13 @@ import { $, esc } from "./html.js";
 import { iconHTML } from "../icons.js";
 import { fmtDate } from "../dates.js";
 import { agenda, pendingEvents } from "../events.js";
-import { isTerm, atLast, isActive, stageLabel } from "../model.js";
+import { isTerm, isOffer, isActive, stageLabel } from "../model.js";
 import { dueBadgeHTML } from "./list.js";
 
 export function renderStats(all) {
   const activeList = all.filter(isActive);
   const withNext = activeList.filter((c) => pendingEvents(c).length).length;
-  const offer = all.filter(atLast).length;
+  const offer = all.filter(isOffer).length;
   const rej = all.filter((c) => c.stage === "rejected").length;
   const dec = all.filter((c) => c.stage === "declined").length;
   const active = activeList.length;

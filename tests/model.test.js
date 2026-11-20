@@ -62,8 +62,10 @@ test("editing stages: add, reorder, delete; the current stage cannot be deleted"
   assert.match(checkStages([{ id: "x", label: "あ".repeat(17) }]).error, /16文字/);
 });
 test("last stage colour is the offer green", () => {
-  assert.equal(colorAt(7, 8), "var(--st-offer)");
-  assert.equal(colorAt(8, 10), "var(--st-entry)");
+  assert.equal(colorAt(7, DEFAULT_STAGES), "var(--st-offer)");
+  assert.equal(colorAt(6, DEFAULT_STAGES), "var(--st-final)");
+  const noOffer = DEFAULT_STAGES.map((s) => ({ ...s, offer: false }));
+  assert.equal(colorAt(7, noOffer), "var(--st-interest)"); // position 7 cycles back; no green without the flag
 });
 test("migration: old records get the default stages and keep working", () => {
   const c = normalize({ id: "old", name: "旧社", stage: "gd", nextDate: "2026-11-25T05:00:00.000Z", nextLabel: "一次面接", history: [{ stage: "entry", at: "2026-10-01T00:00:00Z" }] });
@@ -75,4 +77,51 @@ test("migration: old records get the default stages and keep working", () => {
   const bad = normalize({ name: "x", stage: "unknown", stages: "nope", url: "javascript:alert(1)" });
   assert.equal(bad.stage, "interest");
   assert.equal(bad.url, "");
+});
+
+import { cleanStages, inferOfferIndex, isOffer, toggleOffer, offerIndex } from "../js/model.js";
+
+test("offer flag migration: id offer, else last label with 内定, else none", () => {
+  const byId = cleanStages([{ id: "a", label: "応募" }, { id: "offer", label: "合格" }, { id: "b", label: "内定式" }]);
+  assert.equal(offerIndex(byId), 1);
+  const byLabel = cleanStages([{ id: "a", label: "応募" }, { id: "b", label: "内々定" }, { id: "c", label: "内定承諾" }]);
+  assert.equal(offerIndex(byLabel), 2);
+  const none = cleanStages([{ id: "a", label: "書類" }, { id: "b", label: "面接" }, { id: "c", label: "最終面接" }]);
+  assert.equal(offerIndex(none), -1);
+  assert.equal(inferOfferIndex([{ id: "x", label: "最終" }]), -1); // never by position
+  // an explicit "no offer" list (flags present, all false) is kept as is
+  assert.equal(offerIndex(cleanStages([{ id: "offer", label: "内定", offer: false }, { id: "b", label: "x", offer: false }])), -1);
+  // more than one flag in the input: only one survives
+  assert.equal(cleanStages([{ id: "a", label: "A", offer: true }, { id: "b", label: "B", offer: true }]).filter((s) => s.offer).length, 1);
+});
+test("finishing the last stage is not 内定 unless that stage is flagged", () => {
+  const stages = [{ id: "a", label: "書類" }, { id: "b", label: "最終面接" }];
+  const c = normalize({ name: "x", stages, stage: "b" });
+  assert.equal(isOffer(c), false);
+  assert.equal(isActive(c), true);
+  const flagged = normalize({ name: "x", stages: toggleOffer(c.stages, 1).list, stage: "b" });
+  assert.equal(isOffer(flagged), true);
+  assert.equal(colorAt(1, flagged.stages), "var(--st-offer)");
+});
+test("stages after the offer stage also count as 内定", () => {
+  const stages = [...DEFAULT_STAGES, { id: "acc", label: "内定承諾", offer: false }];
+  const c = normalize({ name: "x", stages, stage: "acc" });
+  assert.equal(isOffer(c), true);
+  assert.equal(colorAt(8, c.stages), "var(--st-offer)");
+  assert.equal(isOffer(normalize({ name: "x", stages, stage: "final" })), false);
+  assert.equal(isOffer(normalize({ name: "x", stages, stage: "rejected" })), false);
+});
+test("editor ops keep at most one offer flag; deleting it clears; reset restores", () => {
+  let list = DEFAULT_STAGES.map((s) => ({ ...s }));
+  list = toggleOffer(list, 6).list;
+  assert.deepEqual(list.map((s) => s.offer).map(Number).join(""), "00000010");
+  assert.equal(offerIndex(toggleOffer(list, 6).list), -1); // toggling again clears
+  list = moveStage(list, 6, 1).list;
+  assert.equal(list[7].offer, true);
+  list = deleteStage(list, 7, "entry").list;
+  assert.equal(offerIndex(list), -1);
+  assert.equal(offerIndex(insertStage(list, 0).list), -1);
+  assert.equal(checkStages(list).stages.every((s) => s.offer === false), true);
+  assert.match(checkStages([{ id: "a", label: "A", offer: true }, { id: "b", label: "B", offer: true }]).error, /内定/);
+  assert.equal(offerIndex(cleanStages(DEFAULT_STAGES)), 7); // 初期状態に戻す
 });

@@ -189,7 +189,7 @@ export function initDialog(app) {
     const stage = $("c-stage").value;
     const c = editing();
     const r = reachedFrom(S.draftStages, stage, c ? c.history : []);
-    $("dlg-steps").innerHTML = stepsHTML(S.draftStages.map((s) => ({ id: s.id, label: String(s.label).trim() || "…" })), stage, r, true);
+    $("dlg-steps").innerHTML = stepsHTML(S.draftStages.map((s) => ({ id: s.id, label: String(s.label).trim() || "…", offer: s.offer === true })), stage, r, true);
     requestAnimationFrame(() => revealCurrentSteps($("dlg-steps").parentElement));
     const name = $("c-name").value || "";
     const src = currentIconSrc();
@@ -241,7 +241,7 @@ export function initDialog(app) {
     $("hist").innerHTML = hist.map((h) => {
       const t = parseDate(h.at);
       const k = c.stages.findIndex((s) => s.id === h.stage);
-      const col = isTerm(h.stage) ? termColor(h.stage) : colorAt(k, c.stages.length);
+      const col = isTerm(h.stage) ? termColor(h.stage) : colorAt(k, c.stages);
       return `<li style="--sc:${col}"><span class="num">${t ? esc(fmtFull(t)) : "—"}</span><span>${esc(h.label || labelIn(c.stages, h.stage))}</span></li>`;
     }).join("");
     resetIcon();

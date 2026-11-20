@@ -1,6 +1,6 @@
 /* Editable stage list, used by the template panel and the company dialog. */
 import { $, esc } from "./html.js";
-import { MAX_LABEL, MAX_STAGES, moveStage, insertStage, deleteStage } from "../model.js";
+import { MAX_LABEL, MAX_STAGES, moveStage, insertStage, deleteStage, toggleOffer, offerIndex } from "../model.js";
 
 const editors = new Map();
 
@@ -20,12 +20,15 @@ export function renderEditor(kind) {
     <li class="sed-row">
       <span class="sed-n num">${i + 1}</span>
       <input class="input sed-in" id="${kind}-label-${sid}" value="${lab}" maxlength="${MAX_LABEL}" autocomplete="off" aria-label="${i + 1}番目の段階名" data-ed="${kind}" data-op="rename" data-i="${i}">
+      <button type="button" class="sed-offer" id="${kind}-offer-${sid}" data-ed="${kind}" data-op="offer" data-i="${i}" aria-pressed="${s.offer === true}" aria-label="${lab}を内定にあたる段階にする" title="内定にあたる段階">内定</button>
       <button type="button" class="sed-b" id="${kind}-up-${sid}" data-ed="${kind}" data-op="up" data-i="${i}" aria-label="${lab}を上へ"${i === 0 ? " disabled" : ""}>↑</button>
       <button type="button" class="sed-b" id="${kind}-down-${sid}" data-ed="${kind}" data-op="down" data-i="${i}" aria-label="${lab}を下へ"${i === n - 1 ? " disabled" : ""}>↓</button>
       <button type="button" class="sed-b" id="${kind}-ins-${sid}" data-ed="${kind}" data-op="ins" data-i="${i}" aria-label="${lab}の下に段階を追加" title="この下に追加"${n >= MAX_STAGES ? " disabled" : ""}>＋</button>
       <button type="button" class="sed-b del" id="${kind}-del-${sid}" data-ed="${kind}" data-op="del" data-i="${i}" aria-label="${lab}を削除" title="削除"${n <= 1 ? " disabled" : ""}>✕</button>
     </li>`;
-  }).join("")}</ol>`;
+  }).join("")}</ol>
+  <p class="hint sed-hint">内定にあたる段階に「内定」の印を付けると、その段階（とその後の段階）の企業が「内定」として数えられます。</p>
+  ${offerIndex(list) < 0 ? `<p class="sed-note" role="note">「内定」の印が付いた段階がありません。この並びでは、最後の段階まで進んでも「内定」には数えません。</p>` : ""}`;
 }
 
 export function editorOp(kind, op, i, value) {
@@ -48,6 +51,9 @@ export function editorOp(kind, op, i, value) {
   } else if (op === "ins" || op === "add") {
     r = insertStage(list, op === "add" ? list.length : i + 1);
     if (r.added) focusId = `${kind}-label-${r.added.id}`;
+  } else if (op === "offer") {
+    r = toggleOffer(list, i);
+    focusId = `${kind}-offer-${list[i].id}`;
   } else if (op === "del") {
     r = deleteStage(list, i, cfg.currentId ? cfg.currentId() : null);
     if (r.list) focusId = `${kind}-del-${r.list[Math.min(i, r.list.length - 1)].id}`;

@@ -100,8 +100,7 @@ function renderKindFilter() {
 }
 function emptyHTML() {
   if (!S.loaded) return `<div class="empty"><h2>読み込み中…</h2><p>この端末に保存された企業を読み込んでいます。</p></div>`;
-  const n = S.template.length;
-  const demo = S.template.map((s, i) => `<span style="--sc:${colorAt(i, n)}">${esc(s.label)}</span>`).join("");
+  const demo = S.template.map((s, i) => `<span style="--sc:${colorAt(i, S.template)}">${esc(s.label)}</span>`).join("");
   return `<div class="empty">
     <h2>応募した企業を、ひとつの一覧で</h2>
     <p>企業ごとに職種・コース、いまの選考段階、予定（締切・面接日）を記録すると、進み具合が矢印で並び、近い予定から順に確認できます。選考段階は企業ごとに変えられます。データはこの端末の中だけに保存されます。</p>
