@@ -1,5 +1,5 @@
 /* 就活ボード service worker — offline app shell. Bump VERSION on every release. */
-const VERSION = "v7";
+const VERSION = "v8";
 const SHELL_CACHE = "shukatsu-shell-" + VERSION;
 const FONT_CACHE = "shukatsu-fonts-v2";
 const SHELL = [
@@ -37,7 +37,10 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(SHELL_CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: "reload" so the new version is stored, never a copy from the browser's HTTP cache
+  event.waitUntil(caches.open(SHELL_CACHE)
+    .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
@@ -48,16 +51,18 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-function staleWhileRevalidate(request, cacheName) {
-  return caches.open(cacheName).then((cache) =>
-    cache.match(request).then((cached) => {
-      const fresh = fetch(request).then((res) => {
-        if (res && (res.ok || res.type === "opaque")) cache.put(request, res.clone());
-        return res;
-      }).catch(() => cached);
-      return cached || fresh;
+/* App files (page, scripts, styles, manifest): always ask the server first,
+   revalidating past the HTTP cache, so the page and its scripts are the same
+   release. The cached copy is used only when offline. */
+function networkFirst(request, cacheKey) {
+  return fetch(request.url, { cache: "no-cache", credentials: "same-origin" })
+    .then((res) => {
+      if (res && res.ok) { const copy = res.clone(); caches.open(SHELL_CACHE).then((c) => c.put(cacheKey || request, copy)); }
+      return res;
     })
-  );
+    .catch(() => caches.match(cacheKey || request, { ignoreSearch: true })
+      .then((r) => r || (request.mode === "navigate" ? caches.match("./") : undefined))
+      .then((r) => r || Response.error()));
 }
 
 self.addEventListener("fetch", (event) => {
@@ -73,23 +78,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Pages: network first so updates arrive, cached shell when offline
-  if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req).then((res) => {
-        if (res && res.ok) { const copy = res.clone(); caches.open(SHELL_CACHE).then((c) => c.put("./index.html", copy)); }
-        return res;
-      }).catch(() => caches.match("./index.html", { ignoreSearch: true }).then((r) => r || caches.match("./")))
-    );
-    return;
-  }
+  // Pages, scripts, styles, manifest: network first (see networkFirst)
+  if (req.mode === "navigate") { event.respondWith(networkFirst(req, "./index.html")); return; }
+  if (/\.(?:js|css|webmanifest)$/.test(url.pathname)) { event.respondWith(networkFirst(req)); return; }
 
-  // Script / style: serve cached, refresh in background
-  if (/\.(?:js|css)$/.test(url.pathname)) {
-    event.respondWith(staleWhileRevalidate(req, SHELL_CACHE));
-    return;
-  }
-
-  // Everything else (icons, manifest): cache first
+  // Everything else (icons): cache first
   event.respondWith(caches.match(req, { ignoreSearch: true }).then((r) => r || fetch(req)));
 });

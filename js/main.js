@@ -128,10 +128,20 @@ function render() {
   renderStats(S.docs);
   renderUpcoming(S.docs, iconUrl, now);
   const main = $("main");
+  // The calendar always opens, even with no companies yet (data is per device,
+  // so a PC can be empty while the phone has data).
+  if (cal) {
+    const list = filtered();
+    $("count-line").textContent = S.docs.length ? `${list.length} / ${S.docs.length} 社` : "";
+    const hint = !S.loaded ? "" : !S.docs.length
+      ? `<div class="notice cal-empty-note"><span class="grow">この端末にはまだ企業が登録されていません。企業を追加して「予定」を入れると、カレンダーに表示されます。データは端末ごとに別々なので、スマホのデータをこのパソコンで見たいときは「バックアップ」で書き出して読み込んでください。</span><button type="button" class="btn small primary" data-act="add">＋ 企業を追加</button><button type="button" class="btn small" data-act="samples">サンプルを入れて試す</button></div>`
+      : "";
+    main.innerHTML = hint + calendarHTML(list, S.cal, { iconUrl, now });
+    return;
+  }
   if (!S.docs.length) { main.innerHTML = emptyHTML(); $("count-line").textContent = ""; return; }
   const list = filtered();
   $("count-line").textContent = `${list.length} / ${S.docs.length} 社`;
-  if (cal) { main.innerHTML = calendarHTML(list, S.cal, { iconUrl, now }); return; }
   main.innerHTML = list.length ? listHTML(list, { sort: S.sort, iconUrl, now })
     : `<div class="empty"><h2>条件に一致する企業はありません</h2><p>検索語や志望度・種類・対象の絞り込みを変えてみてください。</p></div>`;
   revealCurrentSteps(main);
@@ -286,5 +296,13 @@ render();
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.loaded) render(); });
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
-  window.addEventListener("load", () => { navigator.serviceWorker.register("./sw.js").catch(() => {}); });
+  window.addEventListener("load", () => {
+    // updateViaCache "none": always check sw.js with the server, never the HTTP cache
+    navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" })
+      .then((reg) => {
+        reg.update().catch(() => {});
+        document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); });
+      })
+      .catch(() => {});
+  });
 }
