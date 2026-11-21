@@ -37,6 +37,8 @@ const SHELL = [
   "./js/theme-boot.js",
   "./js/ui/theme-panel.js",
   "./js/trash.js",
+  "./js/swipe.js",
+  "./js/ui/swipe-rows.js",
   "./js/ui/compare.js",
   "./js/ui/onboarding-card.js",
   "./js/ui/tour.js",

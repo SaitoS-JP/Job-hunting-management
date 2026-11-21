@@ -66,7 +66,10 @@ export function listHTML(list, { sort, iconUrl, now = new Date() }) {
   const rows = sortList(list, sort, now).map((c) => {
     const u = parseDate(c.updatedAt);
     const id = esc(c.id);
-    return `<div class="lrow" role="row">
+    // .swipe holds the 削除 button revealed by a left swipe (touch only; see swipe-rows.js)
+    return `<div class="swipe" data-swipe="${id}" role="presentation">
+    <button type="button" class="swipe-del" data-act="swipe-delete" data-id="${id}" tabindex="-1" aria-hidden="true" aria-label="${esc(c.name || "（社名未入力）")}を削除">削除</button>
+    <div class="lrow" role="row">
       <div class="who" role="cell"><div class="who-in">${iconHTML(c.name, iconUrl(c.iconId), 28)}<div><button type="button" data-act="edit" data-id="${id}">${esc(c.name || "（社名未入力）")}</button>${kindChip(c)}${sampleChip(c)}
         <span class="pos">${esc(c.position)}${c.industry ? ` <span class="ind">／${esc(c.industry)}</span>` : ""}</span>${notesHint(c)}</div></div></div>
       <div role="cell" class="prog-cell" style="min-width:0">${progHTML(c)}</div>
@@ -74,7 +77,7 @@ export function listHTML(list, { sort, iconUrl, now = new Date() }) {
       <div role="cell">${nextHTML(c, now)}</div>
       <div role="cell" class="upd">${u ? fmtShort(u) : "—"}</div>
       <div role="cell" class="acts">${actsHTML(c)}</div>
-    </div>`;
+    </div></div>`;
   }).join("");
   return `<div class="list" role="table" aria-label="企業一覧">
     <div class="lrow lhead" role="row"><span role="columnheader">社名・職種</span><span role="columnheader">選考段階</span><span role="columnheader">志望度</span><span role="columnheader">次の予定</span><span role="columnheader">更新</span><span role="columnheader" style="text-align:right">操作</span></div>

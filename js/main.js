@@ -27,6 +27,7 @@ import { renderOnboarding } from "./ui/onboarding-card.js";
 import { createTour } from "./ui/tour.js";
 import { initThemePanel } from "./ui/theme-panel.js";
 import { splitTrash, purgeSelection, orphanIcons, withDeleted, withRestored, daysLeft } from "./trash.js";
+import { installSwipeRows } from "./ui/swipe-rows.js";
 import { latestOwnCompany } from "./onboarding.js";
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
@@ -272,6 +273,13 @@ $("btn-trash-yes").addEventListener("click", async () => {
   catch (err) { showErr(errText(err)); }
 });
 
+/* ---------- swipe to delete (touch) ---------- */
+async function swipeDelete(id) {
+  const c = S.docs.find((x) => x.id === id); if (!c) return;
+  try { await deleteRecord(c); await reload(); } catch (e) { showErr(errText(e)); }
+}
+installSwipeRows($("main"), { onDelete: swipeDelete });
+
 function render() {
   $("notice-db").hidden = S.mode !== "memory";
   $("local-note").classList.toggle("mem", S.mode === "memory");
@@ -387,6 +395,7 @@ document.addEventListener("click", (e) => {
   else if (act === "back") changeStage(c, prevStageId(c));
   else if (act === "restore") changeStage(c, restoreStageId(c));
   else if ((act === "rejected" || act === "declined") && !isTerm(c.stage)) changeStage(c, act);
+  else if (act === "swipe-delete") swipeDelete(c.id);
   else if (act === "ev-done" || act === "ev-undone") markEventDone(c, b.dataset.ev, act === "ev-done");
 });
 async function markEventDone(c, eventId, done = true) {

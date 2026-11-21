@@ -696,3 +696,12 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
 .trash-when{display:block; font-size:12px; color:var(--ink-2)}
 .trash-acts{display:flex; gap:6px; flex-wrap:wrap}
 .trash-empty{padding:6px 0}
+
+/* ---- left swipe on list rows (touch) ---- */
+.swipe{position:relative; overflow:hidden; border-top:1px solid var(--rule)}
+.swipe > .lrow{position:relative; z-index:1; border-top:0; background:var(--surface); touch-action:pan-y; will-change:transform}
+.swipe.dragging > .lrow{transition:none}
+.swipe-del{position:absolute; top:0; right:0; bottom:0; width:88px; border:0; background:var(--danger); color:var(--surface); font-weight:700; font-size:14px}
+.swipe-del:focus-visible{outline:3px solid var(--ink); outline-offset:-5px}
+.steps-scroll{touch-action:pan-x pan-y}
+@media (prefers-reduced-motion: no-preference){ .swipe > .lrow{transition:transform .2s ease-out} }
