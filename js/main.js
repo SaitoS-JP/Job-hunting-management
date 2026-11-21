@@ -14,8 +14,8 @@ import { DEFAULT_STAGES, cloneStages, cleanStages, normalize, isTerm, isActive, 
 import { p2, WD, ymd, fmtFull, fmtDate } from "./dates.js";
 import { backupReminder } from "./backup.js";
 import { buildSamples } from "./samples.js";
-import { IconCache, installIconFallback } from "./icons.js";
-import { listHTML } from "./ui/list.js";
+import { IconCache, installIconFallback, iconHTML } from "./icons.js";
+import { listHTML, kindChip } from "./ui/list.js";
 import { renderStats, renderUpcoming } from "./ui/summary.js";
 import { revealCurrentSteps } from "./ui/stepper.js";
 import { installEditorEvents } from "./ui/stage-editor.js";
@@ -26,13 +26,14 @@ const LS = { sort: "shukatsu.sort", iosHint: "shukatsu.iosHintDismissed", view: 
 import { renderOnboarding } from "./ui/onboarding-card.js";
 import { createTour } from "./ui/tour.js";
 import { initThemePanel } from "./ui/theme-panel.js";
+import { splitTrash, purgeSelection, orphanIcons, withDeleted, withRestored, daysLeft } from "./trash.js";
 import { latestOwnCompany } from "./onboarding.js";
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 
 const S = {
   mode: "loading", // loading | idb | memory
-  docs: [], loaded: false,
+  docs: [], trash: [], loaded: false,
   template: cloneStages(DEFAULT_STAGES),
   q: "", pri: "all", scope: "all", sort: "next", kind: "all",
   view: "list", cal: todayState(),
@@ -71,13 +72,24 @@ async function reload() {
   try {
     const t = await store.getSetting("template").catch(() => undefined);
     S.template = cleanStages(t && t.stages) || cloneStages(DEFAULT_STAGES);
-    S.docs = (await store.all()).map((r) => normalize(r, r.id));
+    let all = (await store.all()).map((r) => normalize(r, r.id));
+    if (!S.purged) { // once per page load: drop what has been in the trash for over 30 days
+      S.purged = true;
+      const p = purgeSelection(all);
+      if (p.records.length) {
+        await serial(async () => { for (const c of p.records) await store.del(c.id); for (const i of p.iconIds) await store.delIcon(i).catch(() => {}); });
+        const gone = new Set(p.records.map((c) => c.id));
+        all = all.filter((c) => !gone.has(c.id));
+      }
+    }
+    const split = splitTrash(all);
+    S.docs = split.active; S.trash = split.trash;
     S.lastBackupAt = (await store.getSetting("lastBackupAt").catch(() => "")) || "";
     S.icsExport = cleanSnapshot(await store.getSetting("icsExport").catch(() => null));
     const ids = await store.getSetting("compareIds").catch(() => null);
     S.compareIds = Array.isArray(ids) ? ids.filter((x) => typeof x === "string").slice(0, 50) : null;
     S.loaded = true;
-    await icons.sync(store, S.docs.map((c) => c.iconId));
+    await icons.sync(store, [...S.docs, ...S.trash].map((c) => c.iconId));
     render();
   } catch (e) { showErr("データを読み込めませんでした。ページを開き直してください。"); }
 }
@@ -87,12 +99,54 @@ async function saveRecord(rec) {
   await serial(() => store.put(rec)); notifyOthers();
   if (before) noteExportChanges(before, normalize(rec, rec.id));
 }
+/* Delete = move to 削除した企業 (soft delete) with an undo snackbar. */
 async function deleteRecord(c) {
   hideChangeNotice();
-  await serial(async () => { await store.del(c.id); if (c.iconId) await store.delIcon(c.iconId).catch(() => {}); });
+  await serial(() => store.put(withDeleted(c)));
   notifyOthers();
   noteExportChanges(c, null);
+  showUndo(c);
 }
+/* Permanent removal (from the trash, or サンプルを削除). Icons go only when no other record uses them. */
+async function purgeRecords(list) {
+  const all = [...S.docs, ...S.trash];
+  const iconIds = orphanIcons(list, all);
+  await serial(async () => { for (const c of list) await store.del(c.id); for (const i of iconIds) await store.delIcon(i).catch(() => {}); });
+  notifyOthers();
+}
+async function restoreRecord(c) {
+  await serial(() => store.put(withRestored(c)));
+  notifyOthers();
+}
+
+/* ---------- 元に戻す (undo snackbar) ---------- */
+const UNDO_MS = 8000;
+let undoTarget = null, undoTimer = 0, undoLeft = 0, undoStart = 0;
+function startUndoTimer(ms) { clearTimeout(undoTimer); undoStart = Date.now(); undoLeft = ms; undoTimer = setTimeout(hideUndo, ms); }
+function pauseUndo() { if (!undoTimer) return; clearTimeout(undoTimer); undoTimer = 0; undoLeft = Math.max(1500, undoLeft - (Date.now() - undoStart)); }
+function resumeUndo() { if (!$("undo-bar").hidden && !undoTimer) startUndoTimer(undoLeft); }
+function showUndo(c) {
+  undoTarget = c.id;
+  $("undo-text").textContent = `${c.name || "（社名未入力）"}を削除しました`;
+  $("btn-undo").hidden = false;
+  $("undo-bar").hidden = false;
+  startUndoTimer(UNDO_MS);
+}
+function hideUndo() { clearTimeout(undoTimer); undoTimer = 0; undoTarget = null; $("undo-bar").hidden = true; }
+$("btn-undo-close").addEventListener("click", hideUndo);
+$("btn-undo").addEventListener("click", async () => {
+  const c = S.trash.find((x) => x.id === undoTarget);
+  if (!c) { hideUndo(); return; }
+  try {
+    await restoreRecord(c);
+    undoTarget = null;
+    $("undo-text").textContent = `${c.name || "（社名未入力）"}を元に戻しました`;
+    $("btn-undo").hidden = true;
+    startUndoTimer(2500);
+    await reload();
+  } catch (e) { showErr(errText(e)); }
+});
+for (const [ev, fn] of [["pointerenter", pauseUndo], ["pointerleave", resumeUndo], ["focusin", pauseUndo], ["focusout", resumeUndo]]) $("undo-bar").addEventListener(ev, fn);
 
 /* ---------- 書き出し済みの予定が変わったときのお知らせ ---------- */
 const pendingChanges = [];
@@ -164,6 +218,60 @@ function emptyHTML() {
     <p class="hint" style="margin-top:10px">社名と職種だけで登録でき、あとから段階や予定を足せます。サンプルはいつでも「サンプルを削除」で消せます。</p>
   </div>`;
 }
+/* ---------- 削除した企業 (trash panel) ---------- */
+let trashConfirm = null; // {ids, label}
+function renderTrash() {
+  const n = S.trash.length;
+  $("trash-badge").hidden = !n; $("trash-badge").textContent = n ? String(n) : "";
+  if ($("trash-panel").hidden) return;
+  const now = new Date();
+  $("trash-list").innerHTML = n ? S.trash.map((c) => {
+    const d = new Date(c.deletedAt), left = daysLeft(c, now);
+    return `<li class="trash-item">
+      <span class="trash-who">${iconHTML(c.name, iconUrl(c.iconId), 28)}<span><b>${esc(c.name || "（社名未入力）")}</b>${kindChip(c)}
+        <span class="trash-when">${esc(fmtFull(d))} に削除・${left ? `あと ${left}日で完全に削除` : "まもなく完全に削除"}</span></span></span>
+      <span class="trash-acts">
+        <button type="button" class="btn small" data-trash="restore" data-id="${esc(c.id)}">元に戻す</button>
+        <button type="button" class="btn small ghost" data-trash="purge" data-id="${esc(c.id)}">完全に削除</button>
+      </span></li>`;
+  }).join("") : `<li class="hint trash-empty">削除した企業はありません。削除すると30日間ここに残り、元に戻せます。</li>`;
+  $("trash-all-row").hidden = n < 2;
+  if (trashConfirm && !trashConfirm.ids.every((id) => S.trash.some((c) => c.id === id))) trashConfirm = null;
+  $("trash-confirm").hidden = !trashConfirm;
+  if (trashConfirm) $("trash-confirm-text").textContent = trashConfirm.label;
+}
+function openTrash(show = $("trash-panel").hidden) {
+  $("trash-panel").hidden = !show;
+  $("btn-trash").setAttribute("aria-expanded", String(show));
+  trashConfirm = null; $("trash-msg").textContent = "";
+  renderTrash();
+  if (show) { $("trash-panel").scrollIntoView({ block: "nearest" }); $("btn-trash-close").focus(); }
+}
+$("btn-trash").addEventListener("click", () => openTrash());
+$("btn-trash-close").addEventListener("click", () => { openTrash(false); $("btn-menu").focus(); });
+$("trash-panel").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-trash]"); if (!b) return;
+  const c = S.trash.find((x) => x.id === b.dataset.id); if (!c) return;
+  if (b.dataset.trash === "restore") {
+    try { await restoreRecord(c); await reload(); $("trash-msg").textContent = `${c.name}を元に戻しました。`; } catch (err) { showErr(errText(err)); }
+  } else {
+    trashConfirm = { ids: [c.id], label: `${c.name || "（社名未入力）"}を完全に削除します。元に戻せません。` };
+    renderTrash(); $("btn-trash-no").focus();
+  }
+});
+$("btn-trash-all").addEventListener("click", () => {
+  trashConfirm = { ids: S.trash.map((c) => c.id), label: `削除した企業 ${S.trash.length}件をすべて完全に削除します。元に戻せません。` };
+  renderTrash(); $("btn-trash-no").focus();
+});
+$("btn-trash-no").addEventListener("click", () => { trashConfirm = null; renderTrash(); $("btn-trash-close").focus(); });
+$("btn-trash-yes").addEventListener("click", async () => {
+  if (!trashConfirm) return;
+  const list = S.trash.filter((c) => trashConfirm.ids.includes(c.id));
+  trashConfirm = null;
+  try { await purgeRecords(list); await reload(); $("trash-msg").textContent = `${list.length}件を完全に削除しました。`; $("btn-trash-close").focus(); }
+  catch (err) { showErr(errText(err)); }
+});
+
 function render() {
   $("notice-db").hidden = S.mode !== "memory";
   $("local-note").classList.toggle("mem", S.mode === "memory");
@@ -179,6 +287,7 @@ function render() {
   document.querySelector(".toolbar").hidden = cmp; // the comparison has its own picker
   const now = new Date();
   renderBackupReminder(now);
+  renderTrash();
   renderFirstRun();
   renderIcsHint(now);
   renderStats(S.docs);
@@ -354,7 +463,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && $("btn-menu").getAttribute("aria-expanded") === "true") { closeMenu(); $("btn-menu").focus(); }
 });
-for (const id of ["btn-ics", "btn-backup", "btn-tpl", "btn-onboard", "btn-tour", "btn-help", "btn-theme"]) $(id).addEventListener("click", () => {
+for (const id of ["btn-ics", "btn-backup", "btn-tpl", "btn-onboard", "btn-tour", "btn-help", "btn-theme", "btn-trash"]) $(id).addEventListener("click", () => {
   $("btn-menu").setAttribute("aria-expanded", "false");
   document.querySelector(".top-actions").classList.remove("open");
 });
@@ -463,7 +572,8 @@ $("btn-del-samples").addEventListener("click", () => {
 $("btn-samples-no").addEventListener("click", () => { $("notice-samples").hidden = true; });
 $("btn-samples-yes").addEventListener("click", async () => {
   const btn = $("btn-samples-yes"); btn.disabled = true;
-  try { for (const c of S.docs.filter((x) => x.example)) await deleteRecord(c); $("notice-samples").hidden = true; await reload(); }
+  // samples go for good (also any that were already in the trash)
+  try { await purgeRecords([...S.docs, ...S.trash].filter((x) => x.example)); $("notice-samples").hidden = true; await reload(); }
   catch (err) { showErr(errText(err)); }
   finally { btn.disabled = false; }
 });
@@ -473,7 +583,7 @@ $("btn-samples-yes").addEventListener("click", async () => {
    half-finished import, switches to 一覧 and scrolls to the top. Search and
    filters stay. An open dialog is modal, so the title cannot be tapped then;
    unsaved edits are never discarded from here. */
-const PANELS = [["backup-panel", "btn-backup"], ["ics-panel", "btn-ics"], ["tpl-panel", "btn-tpl"], ["help-panel", "btn-help"], ["theme-panel", "btn-theme"]];
+const PANELS = [["backup-panel", "btn-backup"], ["ics-panel", "btn-ics"], ["tpl-panel", "btn-tpl"], ["help-panel", "btn-help"], ["theme-panel", "btn-theme"], ["trash-panel", "btn-trash"]];
 function goHome() {
   closeMenu();
   for (const [panel, btn] of PANELS) { $(panel).hidden = true; $(btn).setAttribute("aria-expanded", "false"); }
@@ -540,6 +650,7 @@ $("help-panel").addEventListener("click", (e) => {
   else if (k === "backup") { if ($("backup-panel").hidden) $("btn-backup").click(); $("backup-panel").scrollIntoView({ block: "nearest" }); }
   else if (k === "ics") openIcsPanel(true);
   else if (k === "theme") { toggleHelp(false); app.openThemePanel(true); }
+  else if (k === "trash") { toggleHelp(false); openTrash(true); }
   else if (k === "compare") { toggleHelp(false); setView("compare"); $("view-cmp").focus(); }
   else if (k === "tpl") { if ($("tpl-panel").hidden) $("btn-tpl").click(); }
 });

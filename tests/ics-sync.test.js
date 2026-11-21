@@ -85,7 +85,7 @@ test("changes to exported events caused by one edit", () => {
   assert.equal(r[0].before.at, iso(25, 14));
   assert.equal(r[0].after.at, iso(25, 16));
   assert.deepEqual(exportedChanges(c, withStage(c, "declined", NOW), snapshot).map((x) => x.reason), ["辞退", "辞退"]);
-  assert.deepEqual(exportedChanges(c, null, snapshot).map((x) => x.reason), ["企業を削除", "企業を削除"]);
+  assert.deepEqual(exportedChanges(c, null, snapshot).map((x) => x.reason), ["削除", "削除"]);
   assert.deepEqual(exportedChanges(c, co([{ id: "e2", at: iso(27), label: "ES締切" }]), snapshot).map((x) => x.reason), ["予定を削除"]);
   assert.deepEqual(exportedChanges(c, withStage(c, "gd", NOW), snapshot), []); // stage only: description changes, nothing visible
 });

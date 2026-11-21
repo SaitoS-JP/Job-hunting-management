@@ -147,7 +147,7 @@ test("v6 keeps compare conditions; v5 migrates to empty; bad conditions reject",
   const c = normalize({ id: "a", name: "社", compare: { salary: 250000, housing: "あり", ratings: { work: 4 } } });
   const v6 = validateBackup(JSON.stringify(serializeBackup({ companies: [c], template: DEFAULT_STAGES, icons: {} })));
   assert.equal(v6.ok, true);
-  assert.equal(v6.version, 6);
+  assert.equal(v6.version, BACKUP_VERSION);
   assert.equal(v6.companies[0].compare.salary, 250000);
   assert.equal(v6.companies[0].compare.ratings.work, 4);
   const v5 = validateBackup(file({ version: 5, companies: [{ id: "b", name: "旧" }] }));

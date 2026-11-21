@@ -160,7 +160,7 @@ export function initBackupPanel(app) {
     btns.forEach((b) => { b.disabled = true; });
     try {
       // everything (icons included) is decoded already; one transaction applies it
-      const plan = planImport(v, mode, S.docs.map((c) => c.id));
+      const plan = planImport(v, mode, [...S.docs, ...(S.trash || [])].map((c) => c.id));
       await app.serial(() => app.store().applyImport(plan));
       msg(`${plan.companies.length} 社を${mode === "replace" ? "置き換えて" : "追加して"}読み込みました。`);
       resetImport(); app.notifyOthers();

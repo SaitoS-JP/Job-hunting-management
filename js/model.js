@@ -202,5 +202,7 @@ export function normalize(d, idOverride) {
     updatedAt: typeof d.updatedAt === "string" ? d.updatedAt : "",
     example: d.example === true,
     iconId: typeof d.iconId === "string" && ID_RE.test(d.iconId) ? d.iconId : "",
+    // soft delete: set while the company is in 削除した企業 (trash)
+    deletedAt: typeof d.deletedAt === "string" && !isNaN(new Date(d.deletedAt)) ? d.deletedAt : "",
   };
 }

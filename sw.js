@@ -1,5 +1,5 @@
 /* 就活ボード service worker — offline app shell. Bump VERSION on every release. */
-const VERSION = "v16";
+const VERSION = "v17";
 const SHELL_CACHE = "shukatsu-shell-" + VERSION;
 const FONT_CACHE = "shukatsu-fonts-v2";
 const SHELL = [
@@ -36,6 +36,7 @@ const SHELL = [
   "./js/themes.js",
   "./js/theme-boot.js",
   "./js/ui/theme-panel.js",
+  "./js/trash.js",
   "./js/ui/compare.js",
   "./js/ui/onboarding-card.js",
   "./js/ui/tour.js",

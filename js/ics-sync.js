@@ -31,7 +31,7 @@ export function fingerprint(c, e) {
 export function exportable(companies) {
   const out = [];
   for (const c of companies) {
-    if (isTerm(c.stage)) continue;
+    if (isTerm(c.stage) || c.deletedAt) continue;
     for (const e of c.events || []) if (!e.done && parseDate(e.at)) out.push({ company: c, event: e, uid: uidFor(c, e) });
   }
   return out;
@@ -124,11 +124,11 @@ export function exportedChanges(before, after, snapshot) {
   const out = [];
   for (const e of before.events || []) {
     const uid = uidFor(before, e);
-    if (!snap.items[uid] || e.done || isTerm(before.stage)) continue; // only what was live before this edit
+    if (!snap.items[uid] || e.done || isTerm(before.stage) || before.deletedAt) continue; // only what was live before this edit
     const was = fingerprint(before, e);
     let reason = "";
     const ae = after ? (after.events || []).find((x) => x.id === e.id) : null;
-    if (!after) reason = "企業を削除";
+    if (!after || after.deletedAt) reason = "削除";
     else if (isTerm(after.stage)) reason = TERM[after.stage];
     else if (!ae) reason = "予定を削除";
     else if (ae.done) reason = "完了";

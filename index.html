@@ -42,6 +42,7 @@
         <button type="button" class="btn" id="btn-tour">使い方ツアー</button>
         <button type="button" class="btn" id="btn-help" aria-expanded="false" aria-controls="help-panel">使い方（よくある質問）</button>
         <button type="button" class="btn" id="btn-theme" aria-expanded="false" aria-controls="theme-panel">テーマ（見た目）</button>
+        <button type="button" class="btn" id="btn-trash" aria-expanded="false" aria-controls="trash-panel">削除した企業<span class="menu-badge num" id="trash-badge" hidden></span></button>
       </span>
       <button type="button" class="btn primary" id="btn-add">＋ 企業を追加</button>
     </div>
@@ -105,6 +106,21 @@
     </div>
   </section>
 
+  <section class="panel" id="trash-panel" aria-labelledby="trash-h" hidden>
+    <div class="help-head"><h2 id="trash-h">削除した企業</h2><button type="button" class="btn small ghost" id="btn-trash-close">閉じる</button></div>
+    <p class="hint">削除した企業は30日間ここに残り、「元に戻す」で予定・ES・アイコンなどもそのまま戻せます。30日たつと自動で完全に削除されます。</p>
+    <ul class="trash-list" id="trash-list"></ul>
+    <div class="row" id="trash-all-row" hidden>
+      <button type="button" class="btn small danger" id="btn-trash-all">すべて完全に削除</button>
+    </div>
+    <div class="confirm-row" id="trash-confirm" hidden>
+      <span class="grow" id="trash-confirm-text" style="flex:1 1 200px"></span>
+      <button type="button" class="btn small danger" id="btn-trash-yes">完全に削除する</button>
+      <button type="button" class="btn small" id="btn-trash-no">やめる</button>
+    </div>
+    <p class="hint" id="trash-msg" role="status"></p>
+  </section>
+
   <section class="panel" id="theme-panel" aria-labelledby="theme-h" hidden>
     <div class="help-head"><h2 id="theme-h">テーマ</h2><button type="button" class="btn small ghost" id="btn-theme-close">閉じる</button></div>
     <p>背景・色・字体のセットを選べます。中身や使い方は変わりません。明るい／暗い表示は端末の設定に合わせます。</p>
@@ -126,6 +142,11 @@
       <summary>見た目（テーマ）を変えるには？</summary>
       <p>メニューの「テーマ（見た目）」で、標準・ポップ・和風・洋風・SF から選べます。選ぶとすぐに切り替わり、この端末に保存されます。</p>
       <p class="row"><button type="button" class="btn small" data-help="theme">テーマを開く</button></p>
+    </details>
+    <details>
+      <summary>消した企業を元に戻すには？</summary>
+      <p>削除した直後なら、画面の下に出る「元に戻す」を押します。あとからでも、メニューの「削除した企業」から30日以内なら元に戻せます（予定やESもそのまま戻ります）。</p>
+      <p class="row"><button type="button" class="btn small" data-help="trash">削除した企業を開く</button></p>
     </details>
     <details>
       <summary>何から始めればいい？</summary>
@@ -529,11 +550,18 @@
   </form>
 </dialog>
 
-<div class="change-notice" id="change-notice" role="status" aria-live="polite" hidden>
-  <div class="cn-body" id="cn-body"></div>
-  <div class="cn-btns">
-    <button type="button" class="btn small primary" id="btn-cn-open">書き出しを開く</button>
-    <button type="button" class="btn small ghost" id="btn-cn-close">閉じる</button>
+<div class="bottom-stack" id="bottom-stack">
+  <div class="undo-bar" id="undo-bar" role="status" aria-live="polite" hidden>
+    <span class="undo-text" id="undo-text"></span>
+    <button type="button" class="btn small primary" id="btn-undo">元に戻す</button>
+    <button type="button" class="icon-x undo-x" id="btn-undo-close" aria-label="閉じる" title="閉じる">×</button>
+  </div>
+  <div class="change-notice" id="change-notice" role="status" aria-live="polite" hidden>
+    <div class="cn-body" id="cn-body"></div>
+    <div class="cn-btns">
+      <button type="button" class="btn small primary" id="btn-cn-open">書き出しを開く</button>
+      <button type="button" class="btn small ghost" id="btn-cn-close">閉じる</button>
+    </div>
   </div>
 </div>
 

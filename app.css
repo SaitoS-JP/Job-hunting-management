@@ -620,7 +620,7 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
 }
 
 /* ---- notice after changing exported events ---- */
-.change-notice{position:fixed; z-index:40; left:max(12px, env(safe-area-inset-left, 0px)); right:max(12px, env(safe-area-inset-right, 0px)); bottom:max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px)); max-width:640px; margin:0 auto; padding:12px 14px; border-radius:10px; background:var(--surface); color:var(--ink); border:1px solid color-mix(in srgb, var(--warn) 50%, var(--line)); border-left:4px solid var(--warn); box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.change-notice{position:relative; padding:12px 14px; border-radius:10px; background:var(--surface); color:var(--ink); border:1px solid color-mix(in srgb, var(--warn) 50%, var(--line)); border-left:4px solid var(--warn); box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .change-notice[hidden]{display:none}
 .cn-line{margin:0 0 4px; font-size:13.5px; font-weight:700; overflow-wrap:anywhere}
 .cn-tip{margin:4px 0 0; font-size:12.5px; color:var(--ink-2)}
@@ -673,3 +673,26 @@ textarea.input{min-height:76px; resize:vertical; line-height:1.5}
 .tp-cur{font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-soft); padding:0 6px; border-radius:3px}
 .tp-d{font-size:12px; color:var(--ink-2); padding:0 2px}
 @media (max-width: 560px){ .theme-grid{grid-template-columns:repeat(2,minmax(0,1fr))} .tp{padding:8px; gap:6px} .tp-t{font-size:12px} .tp-n{font-size:10.5px} .tp-btn{font-size:10.5px; padding:2px 8px} .tp-h{font-size:13px} .tp-chip{display:none} }
+
+
+/* ---- bottom stack: undo snackbar + change notice ---- */
+.bottom-stack{position:fixed; z-index:40; left:max(12px, env(safe-area-inset-left, 0px)); right:max(12px, env(safe-area-inset-right, 0px)); bottom:max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px)); max-width:640px; margin:0 auto; display:flex; flex-direction:column; gap:8px; pointer-events:none}
+.bottom-stack > *{pointer-events:auto}
+.undo-bar{display:flex; align-items:center; gap:8px; padding:8px 8px 8px 14px; border-radius:10px; background:var(--ink); color:var(--bg); box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.undo-bar[hidden]{display:none}
+.undo-text{flex:1 1 auto; min-width:0; font-size:13.5px; font-weight:700; overflow-wrap:anywhere}
+.undo-bar .btn.primary{background:var(--bg); border-color:var(--bg); color:var(--ink); min-height:38px}
+.undo-x{color:var(--bg); min-width:38px; min-height:38px}
+.undo-x:hover{background:transparent; color:var(--bg); opacity:.8}
+@media (prefers-reduced-motion: no-preference){ .undo-bar:not([hidden]){animation:undo-in .18s ease-out} }
+@keyframes undo-in{from{transform:translateY(8px); opacity:0}}
+
+/* ---- 削除した企業 ---- */
+.menu-badge{display:inline-grid; place-items:center; min-width:20px; height:20px; padding:0 6px; margin-left:6px; border-radius:999px; background:var(--danger); color:var(--surface); font-size:11px; font-weight:700}
+.trash-list{list-style:none; margin:8px 0; padding:0; display:flex; flex-direction:column; gap:6px}
+.trash-item{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; padding:8px 10px; border:1px solid var(--line); border-radius:var(--r); background:var(--surface)}
+.trash-who{display:flex; align-items:center; gap:8px; flex:1 1 220px; min-width:0}
+.trash-who b{overflow-wrap:anywhere}
+.trash-when{display:block; font-size:12px; color:var(--ink-2)}
+.trash-acts{display:flex; gap:6px; flex-wrap:wrap}
+.trash-empty{padding:6px 0}
